@@ -30,6 +30,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import il.kavmonitor.shared.resources.watch_route_line
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,31 +107,58 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         }
         LaunchedEffect(c.location.fix, spec.recentKey, c.walkVersion) { c.refreshWatchWalk(spec) }
     }
-    val routeSnap = c.routeLive.state?.snapshot
+    val liveState = c.routeLive.state?.takeIf { spec != null && it.request.lineRef == spec.lineRef }
+    val routeSnap = liveState?.snapshot
     val observed = observedDepartures(state, routeSnap)
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var expanded by rememberSaveable { mutableStateOf<String?>(null) }
 
     LazyColumn(
         Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp),
+        state = listState,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
-                Text(stringResource(Res.string.watch_title), style = MaterialTheme.typography.headlineSmall)
-            }
-        }
         if (state == null) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
+                    Text(stringResource(Res.string.watch_title), style = MaterialTheme.typography.headlineSmall)
+                }
+            }
             item { Loading() }
             return@LazyColumn
         }
-        item {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(lineTitle(state.spec), style = MaterialTheme.typography.titleLarge)
-                    // labeled rows like the direction cards: origin, destination, then what the alert is about
+        val lineRef = state.spec.lineRef
+        val lineName = state.spec.lineName
+        val rows = WatchRows.build(state, stops?.stops, routeSnap, observed, now)
+        // vehicle refs by bus key (follow / actions sheet): the watched stop's view first, else the route view's
+        val refs = buildMap {
+            routeSnap?.buses?.forEach { put(it.key, it.toBusRef(lineRef, lineName)) }
+            state.buses.forEach { v -> put(v.key, v.toBusRef(lineRef, lineName, rows.firstOrNull { it.key == v.key }?.fraction)) }
+        }
+        val followed = c.followed?.takeIf { it.lineRef == lineRef }
+        val isFollowed = { k: String -> followed != null && refs[k]?.let { il.kavmonitor.shared.follow.FollowBus.sameBus(followed, it) } == true }
+
+        // compact header: back · line → destination, from origin
+        item(key = "w-top") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
+                Column(Modifier.weight(1f)) {
+                    Text(lineTitle(state.spec), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     val (destName, destCity) = destinationParts(state.spec)
-                    LabeledRow(stringResource(Res.string.dir_origin), isolate(state.spec.origin.name), state.spec.origin.city)
-                    LabeledRow(stringResource(Res.string.dir_destination), isolate(destName), destCity)
+                    Text(
+                        stringResource(Res.string.watch_route_line, isolate(state.spec.origin.name), isolate(destName + (destCity?.let { ", $it" } ?: ""))),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        item(key = "w-hero") { HeroCard(LineModels.hero(state, rows, now)) }
+        item(key = "w-info") {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     val walkSub = if (state.spec.trigger == TriggerType.LEAVE_FOR_STOP) {
                         val plan = (if (state.isActive) LeavePlanHolder.planFor(state.spec) else null) ?: state.leavePlan ?: state.spec.leave
                         plan?.let {
@@ -136,14 +171,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                             stringResource(Res.string.walk_in_use, it.walkMinutes, it.bufferMinutes, how)
                         }
                     } else null
-                    LabeledRow(stringResource(Res.string.label_trigger), triggerRowText(state.spec), walkSub, valueStyle = MaterialTheme.typography.titleMedium)
-                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                    // same short line as the collapsed ongoing notification (next bus / leave time)
-                    if (state.isActive) {
-                        il.kavmonitor.shared.notify.NotificationTexts.statusLine(state.spec, state, now)?.let {
-                            Text(it, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
+                    LabeledRow(stringResource(Res.string.label_trigger), triggerRowText(state.spec), walkSub, valueStyle = MaterialTheme.typography.titleSmall)
                     val err = state.lastError
                     val phase = when (state.phase) {
                         WatchPhase.RUNNING -> stringResource(Res.string.watch_status_running, state.endsAt.israelClock())
@@ -154,13 +182,17 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                         state.lastSuccessAt?.let { stringResource(Res.string.watch_last_update, it.israelClock()) }
                             ?: stringResource(Res.string.watch_no_update_yet)
                     } else null
-                    Text(listOfNotNull(phase, updated).joinToString(" · "))
-                    Text(stringResource(Res.string.watch_buses_seen, state.busesSeen) + " · " + stringResource(Res.string.watch_alerts, state.alerts.size))
+                    Text(
+                        listOfNotNull(phase, updated, stringResource(Res.string.watch_alerts, state.alerts.size)).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(stringResource(Res.string.watch_buses_seen, state.busesSeen), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.fallback?.let { fb ->
-                        Text(fallbackText(state.spec.trigger, fb), color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium)
+                        Text(fallbackText(state.spec.trigger, fb), color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
                     }
                     if (err != null && state.isActive) {
-                        Text(errorText(err), color = MaterialTheme.colorScheme.error)
+                        Text(errorText(err), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                         Text(
                             state.lastSuccessAt?.let { stringResource(Res.string.watch_retrying_since, it.israelClock()) }
                                 ?: stringResource(Res.string.watch_retrying_none),
@@ -170,7 +202,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                 }
             }
         }
-        item {
+        item(key = "w-stop") {
             if (state.isActive) {
                 Button(
                     onClick = { c.stopWatch() },
@@ -185,30 +217,34 @@ fun WatchScreen(c: AppController, state: WatchState?) {
             }
         }
         if (state.isActive) item(key = "watch-edit") { WatchEditRow(c, state) }
-        val followed = c.followed?.takeIf { it.lineRef == state.spec.lineRef }
         // Followed bus: refreshed by this screen's route view, i.e. only while the screen is visible and the watch runs.
         if (followed != null && stops != null && state.isActive) {
             item(key = "watch-follow") {
                 val preferred = state.spec.stop.takeIf { state.spec.trigger != TriggerType.DEPARTS_ORIGIN }
-                val snap = c.routeLive.state?.takeIf { it.request.lineRef == state.spec.lineRef }?.snapshot
-                c.followInfo(snap, stops.stops, preferred, now)?.let { FollowCard(followed, it, now, onUnfollow = c::unfollow) }
+                c.followInfo(routeSnap, stops.stops, preferred, now)?.let { FollowCard(followed, it, now, onUnfollow = c::unfollow) }
             }
         }
-        item { Text(stringResource(Res.string.watch_buses_header, isolate(state.spec.stop.name)), style = MaterialTheme.typography.titleMedium) }
-        if (state.buses.isEmpty() && state.lastSuccessAt != null) {
-            item { Text(stringResource(Res.string.watch_no_buses), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (state.isActive && stops == null) {
+            item(key = "w-need-stops") { Text(stringResource(Res.string.route_live_need_stops), style = MaterialTheme.typography.bodySmall) }
         }
-        items(state.buses, key = { "watch-" + it.key }) { bus ->
-            val d = bus.toDetails(state.spec, stops?.stops, observed[bus.key])
-            val ref = bus.toBusRef(state.spec.lineRef, state.spec.lineName, d.fraction)
-            BusDetailsCard(
-                d, now,
-                onLongPress = { c.openBusActions(ref) }.takeIf { state.isActive },
-                followed = followed != null && il.kavmonitor.shared.follow.FollowBus.sameBus(followed, ref),
-            )
-        }
+        val userIndex = stops?.stops?.indexOfFirst { it.code == state.spec.stop.code }?.takeIf { it >= 0 }
+        liveLineItems(
+            keyPrefix = "w", state = liveState, stops = stops?.stops, userIndex = userIndex, now = now,
+            rows = rows,
+            rowsTitle = { stringResource(Res.string.watch_buses_header, isolate(state.spec.stop.name)) },
+            noRowsText = if (state.lastSuccessAt != null) ({ stringResource(Res.string.watch_no_buses) }) else null,
+            expanded = expanded, onExpand = { expanded = it }, listState = listState, scope = scope,
+            onOpenMap = stops?.let { st ->
+                { c.openMap(RouteLiveRequest(lineRef, lineName, state.spec.operatorRef, st.stops, state.spec.stop.code), lineName) }
+            },
+            onLongPress = if (state.isActive) { k -> refs[k]?.let { c.openBusActions(it) } } else null,
+            isFollowed = isFollowed,
+            // the watch's own ETA for its rows; the diagram chips use the same (incl. the fallback estimate)
+            diagramEta = { b -> rows.firstOrNull { it.key == b.key }?.eta?.let { e -> e to rows.first { it.key == b.key }.etaEstimated } },
+            showLive = state.isActive && stops != null,
+        )
         if (state.alerts.isNotEmpty()) {
-            item { Text(stringResource(Res.string.watch_alerts_header), style = MaterialTheme.typography.titleMedium) }
+            item(key = "w-alerts-h") { Text(stringResource(Res.string.watch_alerts_header), style = MaterialTheme.typography.titleMedium) }
             items(state.alerts.reversed(), key = { "alert_" + it.key }) { a ->
                 Text(
                     stringResource(
@@ -225,21 +261,6 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                 NearestStopSection(c.location, stops.stops, now, watchedStop = state.spec.stop, isBroken = c::isStopBroken,
                     walk = c::autoWalk, requestWalk = c::requestWalk)
             }
-        }
-        item { HorizontalDivider() }
-        if (!state.isActive) {
-            // no live route view for a finished watch
-        } else if (stops == null) {
-            item { Text(stringResource(Res.string.route_live_need_stops), style = MaterialTheme.typography.bodySmall) }
-        } else {
-            routeLiveItems(
-                c.routeLive.state?.takeIf { it.request.lineRef == state.spec.lineRef }, now, state.spec.stop, keyPrefix = "w", observedDepartures = observed,
-                onOpenMap = {
-                    c.openMap(RouteLiveRequest(state.spec.lineRef, state.spec.lineName, state.spec.operatorRef, stops.stops, state.spec.stop.code), state.spec.lineName)
-                },
-                onBusLongPress = { c.openBusActions(it.toBusRef(state.spec.lineRef, state.spec.lineName)) },
-                followedKey = { b -> followed != null && il.kavmonitor.shared.follow.FollowBus.sameBus(followed, b.toBusRef(state.spec.lineRef, state.spec.lineName)) },
-            )
         }
     }
 }

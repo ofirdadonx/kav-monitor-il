@@ -1,14 +1,19 @@
 package il.kavmonitor.shared.ui
 
-import il.kavmonitor.shared.route.RouteBus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,80 +32,132 @@ import il.kavmonitor.shared.resources.route_live_source
 import il.kavmonitor.shared.resources.route_live_title
 import il.kavmonitor.shared.resources.route_live_upcoming
 import il.kavmonitor.shared.resources.route_live_updated
+import il.kavmonitor.shared.route.RouteBus
 import il.kavmonitor.shared.route.RouteLiveState
 import il.kavmonitor.shared.util.israelClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
-/** Live route view items: active-bus count, one card per active bus, upcoming departures. */
-fun LazyListScope.routeLiveItems(
+/**
+ * The live line section (watch screen and the new-watch route view, v0.6): header ("על הקו עכשיו", map button, active
+ * count, update time / stops), the line diagram, then the compact bus rows (followed bus pinned first, tap = expand,
+ * long-press = vehicle actions), then the no-GPS / upcoming-departures lines and the source note.
+ * Tapping a bus in the diagram expands its row and scrolls to it.
+ */
+fun LazyListScope.liveLineItems(
+    keyPrefix: String,
     state: RouteLiveState?,
+    stops: List<RouteStop>?,
+    userIndex: Int?,
     now: Instant,
-    targetStop: RouteStop?,
-    keyPrefix: String = "route",
-    /** Departures observed elsewhere (the running departs-origin watch), by bus key. */
-    observedDepartures: Map<String, Instant> = emptyMap(),
-    /** Opens the full-screen map (shown as a button in the header). */
-    onOpenMap: (() -> Unit)? = null,
-    /** Long-press on a bus card (vehicle actions sheet). */
-    onBusLongPress: ((RouteBus) -> Unit)? = null,
-    followedKey: (RouteBus) -> Boolean = { false },
+    rows: List<BusDetails>,
+    rowsTitle: @androidx.compose.runtime.Composable () -> String,
+    noRowsText: (@androidx.compose.runtime.Composable () -> String)?,
+    expanded: String?,
+    onExpand: (String?) -> Unit,
+    listState: LazyListState,
+    scope: CoroutineScope,
+    onOpenMap: (() -> Unit)?,
+    onLongPress: ((String) -> Unit)?,
+    isFollowed: (String) -> Boolean,
+    /** ETA at the user's stop for the diagram chips (default: curlbus ETA there or the estimate). */
+    diagramEta: ((RouteBus) -> Pair<Instant, Boolean>?)? = null,
+    showLive: Boolean = true,
+    /** false: no rows section yet (route view still loading). */
+    showRows: Boolean = true,
 ) {
-    item(key = "$keyPrefix-header") {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(Res.string.route_live_title), style = MaterialTheme.typography.titleMedium)
-                if (state?.loading == true) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                if (onOpenMap != null) {
-                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                    androidx.compose.material3.OutlinedButton(onClick = onOpenMap) { Text("🗺 " + stringResource(Res.string.map_open)) }
-                }
-            }
-            val snap = state?.snapshot
-            when {
-                snap == null && state?.error == null -> Text(stringResource(Res.string.route_live_loading), style = MaterialTheme.typography.bodyMedium)
-                snap != null -> {
-                    val n = snap.active.size
-                    Text(
-                        when (n) {
-                            0 -> stringResource(Res.string.route_live_none)
-                            1 -> stringResource(Res.string.route_live_active_one)
-                            else -> stringResource(Res.string.route_live_active, n)
+    val snap = state?.snapshot
+    val ordered = rows.sortedBy { if (isFollowed(it.key)) 0 else 1 } // stable: followed pinned first, rest by ETA
+    val diagramKey = "$keyPrefix-diagram"
+    if (showLive) {
+        item(key = "$keyPrefix-header") { RouteLiveHeader(state, onOpenMap) }
+        item(key = diagramKey) {
+            if (snap != null && stops != null) {
+                val d = LineModels.diagram(
+                    stops, snap, userIndex, now,
+                    eta = diagramEta ?: { b -> userIndex?.let { LineModels.etaAtStop(b, stops, it) } },
+                    followed = { b -> isFollowed(b.key) },
+                )
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                    LineDiagram(
+                        d, Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                        onBusTap = { k ->
+                            onExpand(k)
+                            val i = ordered.indexOfFirst { it.key == k }
+                            val di = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == diagramKey }?.index
+                            if (i >= 0 && di != null) scope.launch { listState.animateScrollToItem(di + 2 + i) }
                         },
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    val extra = if (snap.failedStops.isNotEmpty()) " · " + stringResource(Res.string.route_live_failed_stops, snap.failedStops.size) else ""
-                    Text(
-                        stringResource(Res.string.route_live_updated, snap.fetchedAt.israelClock(withSeconds = true), snap.sampledStops.size) + extra,
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onBusLongPress = onLongPress,
                     )
                 }
             }
-            state?.error?.let { Text(stringResource(Res.string.route_live_error, errorText(it)), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }
-    val snap = state?.snapshot ?: return
-    val origin = state.request.stops.firstOrNull()
-    // A snapshot kept from the previous request may have been sampled for another target: no ETA then (never mislabel).
-    val etaStop = targetStop?.takeIf { it.code == snap.targetStopCode }
-    items(snap.active, key = { "$keyPrefix-bus-" + it.key }) { bus ->
-        BusDetailsCard(
-            bus.toDetails(etaStop, origin?.code, observedDepartures[bus.key]), now,
-            onLongPress = onBusLongPress?.let { f -> { f(bus) } }, followed = followedKey(bus),
-        )
+    if (showRows) item(key = "$keyPrefix-rows-title") {
+        Text(rowsTitle(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
     }
-    if (snap.noGps.isNotEmpty()) {
-        item(key = "$keyPrefix-nogps") {
-            Text(stringResource(Res.string.route_live_no_gps, snap.noGps.size), style = MaterialTheme.typography.bodySmall)
+    ordered.forEach { b ->
+        item(key = "$keyPrefix-row-${b.key}") {
+            CompactBusRow(
+                b, now, expanded = expanded == b.key,
+                onTap = { onExpand(if (expanded == b.key) null else b.key) },
+                onLongPress = onLongPress?.let { f -> { f(b.key) } },
+                followed = isFollowed(b.key),
+            )
         }
     }
-    val upcoming = snap.notStarted.mapNotNull { it.scheduledStart }.distinct().sorted()
-    if (upcoming.isNotEmpty()) {
-        item(key = "$keyPrefix-upcoming") {
-            Text(stringResource(Res.string.route_live_upcoming, upcoming.joinToString(", ") { it.israelClock() }), style = MaterialTheme.typography.bodyMedium)
+    if (showRows && ordered.isEmpty() && noRowsText != null) {
+        item(key = "$keyPrefix-rows-empty") { Text(noRowsText(), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+    if (showLive && snap != null) {
+        if (snap.noGps.isNotEmpty()) {
+            item(key = "$keyPrefix-nogps") { Text(stringResource(Res.string.route_live_no_gps, snap.noGps.size), style = MaterialTheme.typography.bodySmall) }
+        }
+        val upcoming = snap.notStarted.mapNotNull { it.scheduledStart }.distinct().sorted()
+        if (upcoming.isNotEmpty()) {
+            item(key = "$keyPrefix-upcoming") {
+                Text(stringResource(Res.string.route_live_upcoming, upcoming.joinToString(", ") { it.israelClock() }), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        item(key = "$keyPrefix-source") {
+            Text(stringResource(Res.string.route_live_source), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    item(key = "$keyPrefix-source") {
-        Text(stringResource(Res.string.route_live_source), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@androidx.compose.runtime.Composable
+fun RouteLiveHeader(state: RouteLiveState?, onOpenMap: (() -> Unit)?) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(Res.string.route_live_title), style = MaterialTheme.typography.titleMedium)
+            if (state?.loading == true) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+            if (onOpenMap != null) {
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = onOpenMap) { Text("🗺 " + stringResource(Res.string.map_open)) }
+            }
+        }
+        val snap = state?.snapshot
+        when {
+            snap == null && state?.error == null -> Text(stringResource(Res.string.route_live_loading), style = MaterialTheme.typography.bodyMedium)
+            snap != null -> {
+                val n = snap.active.size
+                Text(
+                    when (n) {
+                        0 -> stringResource(Res.string.route_live_none)
+                        1 -> stringResource(Res.string.route_live_active_one)
+                        else -> stringResource(Res.string.route_live_active, n)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                val extra = if (snap.failedStops.isNotEmpty()) " · " + stringResource(Res.string.route_live_failed_stops, snap.failedStops.size) else ""
+                Text(
+                    stringResource(Res.string.route_live_updated, snap.fetchedAt.israelClock(withSeconds = true), snap.sampledStops.size) + extra,
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        state?.error?.let { Text(stringResource(Res.string.route_live_error, errorText(it)), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
     }
 }

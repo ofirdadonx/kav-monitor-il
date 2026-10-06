@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,8 @@ import il.kavmonitor.shared.model.StopList
 import il.kavmonitor.shared.model.StopListSource
 import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.resources.Res
+import il.kavmonitor.shared.resources.route_rows_title
+import il.kavmonitor.shared.resources.route_rows_to_stop
 import il.kavmonitor.shared.resources.back
 import il.kavmonitor.shared.resources.choose_direction
 import il.kavmonitor.shared.resources.choose_stop
@@ -120,9 +123,13 @@ fun NewWatchScreen(c: AppController) {
         }
     }
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         LazyColumn(
             Modifier.weight(1f).padding(horizontal = 16.dp),
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
@@ -202,16 +209,32 @@ fun NewWatchScreen(c: AppController) {
                                 c.followInfo(liveState?.snapshot, list.stops, target, now)?.let { FollowCard(followed, it, now, onUnfollow = c::unfollow) }
                             }
                         }
-                        routeLiveItems(
-                            c.routeLive.state?.takeIf { it.request.lineRef == selected.lineRef }, now, target, keyPrefix = "nw",
+                        val snap = liveState?.snapshot
+                        // a snapshot kept from the previous request may be for another target: no ETA then (never mislabel)
+                        val etaStop = target?.takeIf { snap != null && it.code == snap.targetStopCode }
+                        val targetIndex = etaStop?.let { t -> list.stops.indexOfFirst { it.code == t.code } }?.takeIf { it >= 0 }
+                        val refs = snap?.buses.orEmpty().associate { it.key to it.toBusRef(selected.lineRef, selected.routeShortName) }
+                        val isFollowed = { k: String -> followed != null && refs[k]?.let { il.kavmonitor.shared.follow.FollowBus.sameBus(followed, it) } == true }
+                        val rows = snap?.active.orEmpty().map { b ->
+                            val d = b.toDetails(etaStop, list.stops.firstOrNull()?.code)
+                            if (d.eta != null || targetIndex == null) d
+                            else LineModels.etaAtStop(b, list.stops, targetIndex)?.let { (e, est) -> d.copy(eta = e, etaEstimated = est) } ?: d
+                        }.let { r -> if (targetIndex != null) r.sortedWith(compareBy(nullsLast()) { it.eta }) else r.sortedByDescending { it.fraction ?: -1.0 } }
+                        liveLineItems(
+                            keyPrefix = "nw", state = liveState, stops = list.stops, userIndex = targetIndex, now = now,
+                            rows = rows,
+                            rowsTitle = { etaStop?.let { stringResource(Res.string.route_rows_to_stop, isolate(it.name)) } ?: stringResource(Res.string.route_rows_title) },
+                            noRowsText = null,
+                            expanded = expanded, onExpand = { expanded = it }, listState = listState, scope = scope,
                             onOpenMap = {
                                 c.openMap(
                                     il.kavmonitor.shared.route.RouteLiveRequest(selected.lineRef, selected.routeShortName, selected.operatorRef, list.stops, target?.code),
                                     selected.routeShortName,
                                 )
                             },
-                            onBusLongPress = { c.openBusActions(it.toBusRef(selected.lineRef, selected.routeShortName)) },
-                            followedKey = { b -> followed != null && il.kavmonitor.shared.follow.FollowBus.sameBus(followed, b.toBusRef(selected.lineRef, selected.routeShortName)) },
+                            onLongPress = { k -> refs[k]?.let { c.openBusActions(it) } },
+                            isFollowed = isFollowed,
+                            showRows = snap != null,
                         )
                         item { HorizontalDivider() }
                         item { Text(stringResource(Res.string.trigger_title), style = MaterialTheme.typography.titleMedium) }

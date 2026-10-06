@@ -92,7 +92,10 @@
     <string name="watch_alerts">התראות: %1$d</string>
     <string name="watch_error">שגיאת רשת: %1$s (ממשיך לנסות)</string>
     <string name="watch_no_buses">אין כרגע אוטובוסים של הקו ברשימת התחנה</string>
-    <string name="watch_buses_header">אוטובוסים בתחנה %1$s</string>
+    <string name="watch_buses_header">אוטובוסים לתחנה שלך · %1$s</string>
+    <string name="watch_route_line">מ%1$s ← %2$s</string>
+    <string name="route_rows_title">אוטובוסים על הקו</string>
+    <string name="route_rows_to_stop">אוטובוסים בדרך ל%1$s</string>
     <string name="bus_vehicle">רכב %1$s</string>
     <string name="bus_eta">הגעה משוערת %1$s (בעוד %2$d דק׳)</string>
     <string name="bus_eta_now">הגעה משוערת %1$s (עכשיו)</string>
