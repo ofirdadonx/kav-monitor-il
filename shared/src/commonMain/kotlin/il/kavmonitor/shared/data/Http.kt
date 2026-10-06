@@ -16,7 +16,7 @@ val ApiJson: Json = Json {
     explicitNulls = false
 }
 
-const val USER_AGENT = "kav-monitor-app/0.4 (personal bus watch; Android)"
+const val USER_AGENT = "kav-monitor-app/0.5 (personal bus watch; Android)"
 
 /** Platform engine (OkHttp on Android/JVM). */
 expect fun platformHttpClient(block: HttpClientConfig<*>.() -> Unit): HttpClient

@@ -95,29 +95,28 @@ class MultiStopFetcher(
             try {
                 snaps += request(codes); answered += codes
             } catch (e: StopServerException) {
-                bisect(codes)
+                bisect(codes, requested = true)
                 if (snaps.isEmpty()) throw e
             }
         }
 
-        /** [failing] is known to fail as a whole. */
-        private suspend fun bisect(failing: List<String>) {
+        /**
+         * [failing] is known to fail as a whole; [requested] = that exact list failed in its own request (otherwise its
+         * failure was inferred: the whole failed and the other half answered).
+         */
+        private suspend fun bisect(failing: List<String>, requested: Boolean) {
             if (failing.size == 1) {
-                // confirm with a single-stop request: a 5xx again = broken; success = the earlier 500 was transient
-                try {
-                    snaps += request(failing); answered += failing
-                } catch (_: StopServerException) {
-                    bad += failing.single()
-                }
+                if (requested) { bad += failing.single(); return } // failed alone: broken
+                // inferred only: confirm with one single-stop request (success = the earlier 500 was transient)
+                if (!tryFetch(failing)) bad += failing.single()
                 return
             }
             val a = failing.subList(0, failing.size / 2)
             val b = failing.subList(failing.size / 2, failing.size)
-            val aOk = tryFetch(a)
-            if (aOk) bisect(b) // the culprit is in b: no need to request b as a whole
+            if (tryFetch(a)) bisect(b, requested = false) // the culprit is in b: no need to request b as a whole
             else {
-                bisect(a)
-                if (!tryFetch(b)) bisect(b)
+                bisect(a, requested = true)
+                if (!tryFetch(b)) bisect(b, requested = true)
             }
         }
 

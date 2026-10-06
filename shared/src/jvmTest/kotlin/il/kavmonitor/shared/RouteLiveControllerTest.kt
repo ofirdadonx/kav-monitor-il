@@ -47,25 +47,25 @@ class RouteLiveControllerTest {
         val (live, c) = setup(broken = broken)
         val token = c.attach(req)
         runCurrent()
-        // first refresh: all 28 stops → 500 → bisect finds the 4 broken stops (22 requests, once); the halves that
+        // first refresh: all 28 stops → 500 → bisect finds the 4 broken stops (18 requests, once; a stop that failed alone is not asked again); the halves that
         // answered are kept, so this refresh already has every working stop
-        assertEquals(22, live.calls.size, live.calls.joinToString("\n"))
+        assertEquals(18, live.calls.size, live.calls.joinToString("\n"))
         assertEquals(brokenAt1451, broken.known())
         val snap = assertNotNull(c.state?.snapshot)
         assertEquals(24, snap.sampledStops.size)
         assertEquals(brokenAt1451, snap.failedStops.map { it.code }.toSet())
         // later refreshes: exactly one request with the 24 working stops
         advanceTimeBy(60.seconds); runCurrent()
-        assertEquals(23, live.calls.size)
+        assertEquals(19, live.calls.size)
         assertEquals(24, live.calls.last().split('+').size)
         assertEquals(1, c.lastRequests)
         advanceTimeBy(60.seconds); runCurrent()
-        assertEquals(24, live.calls.size)
+        assertEquals(20, live.calls.size)
 
         c.detach(token)
         assertFalse(c.isRefreshing)
         advanceTimeBy(30.minutes); runCurrent()
-        assertEquals(24, live.calls.size, "no request after leaving the screen")
+        assertEquals(20, live.calls.size, "no request after leaving the screen")
     }
 
     @Test fun knownBrokenStopsAreLeftOutFromTheStart() = runTest {

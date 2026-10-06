@@ -41,3 +41,30 @@ class ScanReplayLive(private val fetchedAt: Instant = ilTime("14:52:20")) : Live
         return StopSnapshot.merge(joined, parts)
     }
 }
+
+/** The 11 real full-route answers (FULL24 = the 24 working stops of 194 in ONE request), 2026-10-06 19:30:57–19:40:47. */
+val FULL_ROUNDS = listOf("193057", "193147", "193247", "193347", "193447", "193547", "193647", "193747", "193847", "193947", "194047")
+val BROKEN_194 = setOf("20876", "20725", "25141", "27117")
+
+/**
+ * curlbus replay of ONE recorded full-route answer (fixtures/full_route_194/full_<round>.json): a multi-stop request
+ * gets the slice of the recorded answer for exactly the asked stops; any known-broken stop → HTTP 500 for the whole
+ * request (like the real server); a single-stop request gets that stop's slice (what `/<stop>` returned at that moment).
+ */
+class FullRouteReplayLive(round: String) : LiveDataSource {
+    val fetchedAt: Instant = ilTime("${round.substring(0, 2)}:${round.substring(2, 4)}:${round.substring(4, 6)}")
+    val full: StopSnapshot = CurlbusParser.parse(fixture("full_route_194/full_$round.json"), "full", fetchedAt)
+    val calls = mutableListOf<String>()
+    override suspend fun stopVisits(stopCode: String): StopSnapshot {
+        calls += stopCode
+        if (stopCode in BROKEN_194) throw StopServerException(stopCode, 500)
+        return full.slice(stopCode)
+    }
+    override suspend fun multiStopVisits(stopCodes: List<String>): StopSnapshot {
+        if (stopCodes.size == 1) return stopVisits(stopCodes.single())
+        val joined = stopCodes.joinToString("+")
+        calls += joined
+        if (stopCodes.any { it in BROKEN_194 }) throw StopServerException(joined, 500)
+        return StopSnapshot.merge(joined, stopCodes.map { full.slice(it) })
+    }
+}
