@@ -68,7 +68,7 @@ class FallbackUiTest {
     private val app get() = ApplicationProvider.getApplicationContext<TestApp>()
     private val nm get() = app.getSystemService(NotificationManager::class.java)
     private val c get() = app.graph.controller
-    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.3.1/live" else "../docs/screenshots/v0.3.1").apply { mkdirs() }
+    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.4/fallback_live" else "../docs/screenshots/v0.4/fallback").apply { mkdirs() }
     private val log = StringBuilder()
     private val timeout = 20_000L
 

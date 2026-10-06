@@ -43,6 +43,9 @@ import il.kavmonitor.shared.resources.nearest_to_watched
 import il.kavmonitor.shared.resources.nearest_use_arrive
 import il.kavmonitor.shared.resources.nearest_use_depart
 import il.kavmonitor.shared.resources.stop_code
+import il.kavmonitor.shared.resources.walk_minutes
+import il.kavmonitor.shared.resources.walk_straight
+import il.kavmonitor.shared.resources.walk_routed
 import il.kavmonitor.shared.resources.stop_item
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
@@ -71,6 +74,9 @@ fun NearestStopSection(
     watchedStop: RouteStop? = null,
     /** Stops curlbus doesn't report get an "estimated" badge. */
     isBroken: (String) -> Boolean = { false },
+    /** Walk to the nearest stop: routed if known (else straight line); [requestWalk] asks for a route once per cell. */
+    walk: ((RouteStop) -> il.kavmonitor.shared.walk.WalkRoute?)? = null,
+    requestWalk: ((RouteStop) -> Unit)? = null,
 ) {
     DisposableEffect(location) {
         val token = location.attach()
@@ -113,6 +119,16 @@ fun NearestStopSection(
                             Text(listOfNotNull(n.stop.city, stringResource(Res.string.stop_code, n.stop.code)).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall, color = muted)
                             Text(stringResource(Res.string.nearest_distance, distanceText(n.distanceMeters)), style = MaterialTheme.typography.bodyMedium)
+                            if (requestWalk != null) {
+                                androidx.compose.runtime.LaunchedEffect(n.stop.code, il.kavmonitor.shared.walk.WalkPlanner.key(fix.lat, fix.lon, n.stop.code)) { requestWalk(n.stop) }
+                            }
+                            walk?.invoke(n.stop)?.let { w ->
+                                Text(
+                                    if (w.routed) stringResource(Res.string.walk_routed, distanceText(w.distanceMeters), w.minutes)
+                                    else stringResource(Res.string.walk_minutes, w.minutes) + " · " + stringResource(Res.string.walk_straight),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                             fix.accuracyMeters?.takeIf { it > ACCURACY_NOTE_METERS }?.let {
                                 Text(stringResource(Res.string.nearest_accuracy, distanceText(it)), style = MaterialTheme.typography.bodySmall, color = muted)
                             }

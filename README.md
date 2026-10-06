@@ -4,11 +4,119 @@ Personal Android app: pick an Israeli bus line + direction, and get a loud notif
 **leaves its origin stop**, **reaches a stop you choose**, or when it's **time to leave** to catch it at your stop. Each watch is started on demand and runs for a limited
 time (default 60 min). The last 5 watch configurations are kept as one-tap "recents".
 
-Status: **v0.3** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone. v0.3 was built and verified on
-Linux only (unit tests, Robolectric/Roborazzi UI tests, live API runs). It has not been run on a device or emulator yet,
-so real GPS fixes and the real system permission dialog are untested.
+Status: **v0.4** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone. v0.3, v0.3.1 and v0.4 were built
+and verified on Linux only (unit tests, Robolectric/Roborazzi UI tests, live API runs). They have not been run on a
+device or emulator, so real GPS fixes, the real permission dialog, osmdroid map tiles and the notification action on a
+real phone are untested.
 Raw evidence: `docs/curlbus-poll-log-2026-10-06.txt` (poll log), `docs/live-smoke-*.txt` (smoke runs),
-`docs/evidence/` (v0.2 live route source measurements, v0.3 Stride geo probe and "time to leave" live run).
+`docs/evidence/` (v0.2 live route source measurements, v0.3 Stride geo probe and "time to leave" live run, v0.4
+walking-route measurements and the live broken-stop fallback run at 25141).
+
+### What's new in v0.4
+
+* **One poll interval: 60 s** (`Polling.INTERVAL` in `trigger/TriggerConfig.kt`). It used to be 35 s for the watch and
+  45 s for the route view. The watch service, the live route view and the map refresh all use it. The thresholds that
+  assumed 35 s polls were re-sized (a bus can move 0.5–1 km between two polls):
+
+  | threshold | v0.3 (35 s polls) | v0.4 (60 s polls) |
+  |---|---|---|
+  | "arriving" ETA (`arriveEtaThreshold`) | ≤ 1 min | ≤ 2 min |
+  | its distance guard (`arriveEtaMaxDistanceMeters`) | 1000 m | 1500 m |
+  | dropped-off-list "passed" window (`passedEtaWindow`) | 3 min | 4 min |
+  | leave time already past (`leaveGrace`) | 1 min | 90 s |
+  | fallback "passed" ETA slack | 2 min | 3 min |
+  | min gap between leave alerts (`leaveMinAlertGap`) | 3 min | 3 min (= 3 polls) |
+
+  Replays at the new thresholds: Azrieli fires at 10:09:08 instead of 10:10:27 (the bus reached the stop at about
+  10:11:03, so about 2 min ahead), and 36926 at 10:06:40 instead of 10:07:17. The tests keep the v0.3 numbers as a
+  comparison. In the 36926 leave replay, bus 7695769 (first seen 96 s after its leave time) still doesn't alert.
+* **Watch card**: labeled rows `מוצא` / `יעד`, like the direction cards, then a separate `התראה` row
+  (`יציאה מהמוצא` / `הגעה ל<stop>` / `זמן לצאת ל<stop>` + the walk plan), then the status rows. The expanded
+  ongoing notification starts with the same three rows, and the recents cards use them too.
+* **Real walking routes** (`walk/WalkingRouter.kt`). The default is FOSSGIS OSRM foot (`routing.openstreetmap.de`,
+  keyless, with the app User-Agent). OpenRouteService foot-walking is used only if a key is configured:
+  `-Pkav.orsApiKey=…` or `ors.apiKey=…` in the git-ignored `local.properties`, compiled into BuildConfig and never
+  committed.
+  * When it calls: one request per selected stop / nearest stop / watch-screen location, cached per ~50 m cell of
+    the origin + stop.
+  * Fallback: after a 5 s timeout or a failure it uses the straight-line estimate (×1.3 ÷ 80 m/min). A failed cell
+    isn't retried for 2 min.
+  * UI: routed shows `2.6 ק״מ הליכה · 35 דק׳` (+ "מסלול הליכה אמיתי (OSRM, OpenStreetMap)"); the fallback shows
+    `… בקו אווירי (הערכה)`.
+  * Measured (`docs/evidence/walking-routes-2026-10-06.md`): routes are 1.08–3.4× the straight line. The ×1.3 rule
+    was badly short near Savidor (277 m straight vs 943 m walking) and across Rishon's blocks (1.2 km straight vs
+    2.6 km / 35 min, against an estimated 20 min).
+  * The optional top-3 re-ranking with a table call is **not** implemented. Near Savidor it would matter: the
+    straight-line nearest stop (20001, 943 m walk) is farther on foot than 20762 (693 m).
+* **Edit a running watch** without a restart or lost state (seen buses, alerts and fallback are kept):
+  * extend by +15 / +30 / +60 min (up to 4 h in total);
+  * time-to-leave watches: change the walk minutes (−/+, manual from then on);
+  * the notification gets a "+15 דק׳" action. Its end time and the wake lock are updated at once, and the
+    engine re-reads the end time every loop turn (`WatchEdits`).
+* **On-demand map** (button `🗺 מפה` in the live route view of the new-watch and watch screens; full screen, Back
+  closes it).
+  * Map: osmdroid with OpenStreetMap tiles and the app User-Agent.
+  * Route: the stop-to-stop polyline, because Stride has no GTFS shapes endpoint.
+  * Markers: stops show their name on tap, and the watched/boarding stop is highlighted. Live buses are labeled
+    "vehicle · %". The user's position is shown only if the location permission is already granted (the map never
+    asks).
+  * Refresh: the map has its own refresher (`mapLive`, same sampled-stops logic, 60 s), attached only while the map
+    is composed. The watch screen's route view is detached while the map is open. Closing the map stops its refresh
+    (tested).
+* **Short notifications** (`notify/NotificationTexts.kt`, shared and unit-tested). The **title** carries the one key
+  fact and the **body** is one short line. Vehicle numbers, trip ids, stop codes and seconds are kept out of the
+  collapsed view; they go to the expanded text (rows, vehicle, scheduled departure, live/buffer details).
+  * Ongoing examples: `מעקב 194 · זמן לצאת` / `יציאה הבאה ב-17:24 (בעוד 8 דק׳) · עד 18:30`, and
+    `מעקב 194 · הגעה לשלמה לוי/שער יפו` / `הבא מגיע ב-17:40 (בעוד 24 דק׳, הערכה) · עד 18:30`.
+  * The ongoing notification has the actions `עצור` and `+15 דק׳`, uses `setOnlyAlertOnce`, and shows a countdown
+    chronometer to the leave time.
+  * Alert examples: `צא עכשיו · 194` / `מגיע לשלמה לוי/שער יפו ב-17:30 · 6 דק׳ הליכה`, `194 יצא מהמוצא` /
+    `יצא ב-17:16 מרכבת תל אביב- סבידור/…`, and `194 מגיע ל…` / `מגיע לתחנה ב-17:30`.
+  * Stop names are shortened: no `ת.` / `תחנת` / `ת.רק"ל` prefix, no city suffix, ≤ 22 characters, cut at `/` or a
+    word boundary with `…`.
+  * Names and line numbers are bidi-isolated (FSI…PDI).
+  * The in-app status line uses the same builder.
+  * Before/after examples: `docs/screenshots/v0.4/notifications.txt`.
+* **Follow one bus.** Long-press a bus card, either in the live route view (new-watch and watch screens) or in the
+  watch screen's bus list. This opens **"פעולות לרכב"**, an in-layout bottom sheet that Back closes.
+  * The sheet header shows the line, the vehicle number, the scheduled departure and % of the route. Below it is an
+    extensible action list (`BusActions.forBus`), currently `עקוב אחרי האוטובוס הזה` or `הפסק לעקוב אחרי האוטובוס`.
+  * The followed bus is pinned by vehicle number, with the trip id as fallback. It gets a prominent card:
+    * minutes until it reaches the boarding/watched stop, or the stop nearest the user when there is no such stop.
+      This is curlbus's own ETA there (`לפי curlbus: מגיע ל… ב-HH:MM`); otherwise it is a labeled estimate from the
+      remaining route distance at 4.5 m/s;
+    * the distance from the user, straight line, labeled `בקו אווירי`;
+    * % of the route, the next stop, and the GPS age;
+    * "already passed your stop";
+    * when the bus disappears (trip ended / GPS lost): `האוטובוס כבר לא מופיע בנתונים החיים`, with the last-seen time and
+      `הפסק לעקוב`. The card recovers if the bus reappears.
+  * Cost: no poller of its own. It reuses the route view's sampled stops (60 s). On the new-watch screen the route
+    view is targeted at the stop nearest the user, so that stop's ETA comes back. That is at most **one extra stop**
+    per refresh, and none when it is already sampled or on the watch screen. It refreshes only while the screen is
+    visible; on the watch screen also only while the watch runs. It is not attached to the background watch service.
+  * **Not done**: turning a followed bus into a watch for that vehicle. That needs vehicle-specific triggers in the
+    engine and service, so it was skipped. Long-press on map markers is also not done.
+* **Broken-stop fallback, live evidence** (`docs/evidence/fallback-25141-live-2026-10-06.md`, `FallbackReplayTest`).
+  * 25141 answered 500 on all 97 polls between 17:58 and 18:48.
+  * Bus 23399602 reached it at **18:41:39** (GPS fix 4 m from the stop).
+  * The fallback's "arriving" alert fired at 18:36:54 (estimated 18:37:42), **≈4¾ min early**; at the 60 s cadence it
+    fired at 18:37:23, 4¼ min early.
+  * The cause: curlbus's own upstream ETA at 20750 was ≈2.5 min optimistic in traffic.
+  * After the bus passed the upstream stop, the estimates were within −1 … +2.5 min.
+* Tests:
+  * `WalkAndEditTest` (jvm): poll constant and thresholds, OSRM parsing/caching on recorded answers, the 5 s timeout
+    fallback, and extend keeping the run and moving the time limit.
+  * `WalkMapEditUiTest` (Robolectric): routed vs straight walk, card rows, extend from the screen and from the
+    notification action, the walk edit, the map opening and stopping, and zero requests after Stop.
+  * `NotificationTextsTest` (jvm): stop shortening, length limits (title ≤ 40, body ≤ 60 visible characters), no
+    vehicle numbers / trip ids / stop codes / seconds in collapsed texts, before/after examples.
+  * `FollowBusTest` (jvm, real 14:51 scan): selection by vehicle and the trip-id fallback, curlbus ETA vs estimate,
+    straight-line distance, passed / not started, a disappeared bus, and no requests after detaching.
+    `FollowBusUiTest` (Robolectric): long-press → sheet → follow → card → bus disappears → zero requests after
+    leaving the screen → unfollow. Screenshots: `docs/screenshots/v0.4/follow_bus/`.
+  * `FallbackReplayTest` (jvm): the 25141 live run at 30 s and 60 s cadence against the GPS ground truth.
+  * Screenshots: `docs/screenshots/v0.4/`. In the harness the map draws its overlays without tiles (offline, no tile
+    downloads in tests).
 
 ### What's new in v0.3.1 (broken-stop fallback)
 
@@ -44,7 +152,7 @@ Some stops answer **HTTP 500** on curlbus for every request (probed 2026-10-06 1
 
 * **"Time to leave" trigger (זמן לצאת)**, the third option next to departs/arrives. You pick a boarding stop
   (it defaults to the route stop nearest to you and can be changed in the stop list, origin included). The watch
-  polls **only that stop** on curlbus (one call per 35 s poll). For every bus:
+  polls **only that stop** on curlbus (one call per 60 s poll; 35 s before v0.4). For every bus:
   `leaveAt = ETA at the boarding stop − walk minutes − buffer`. When `now ≥ leaveAt` for the next bus you can still
   catch, a high-priority alert fires: "צא עכשיו — 194 מגיע ל<stop> ב-HH:mm".
   * **Walk time** = straight-line distance × **1.3** (detour factor) ÷ **80 m/min**, rounded up, clamped to
@@ -186,10 +294,10 @@ polling a few well-spaced stops is enough:
 * **Progress**: the bus's GPS fix is projected onto the stop-to-stop polyline between the last sampled stop it has
   passed and the first sampled stop that still lists it, then interpolated on GTFS `shape_dist_traveled`
   (straight-line distances if missing). More than 2 km off the polyline → no % shown. "ליד התחנה" = within 150 m.
-* **Politeness**: refresh every **45 s**, only while the route view is on screen **and** the app is visible
+* **Politeness**: refresh every **60 s** (45 s before v0.4), only while the route view is on screen **and** the app is visible
   (`onStart`/`onStop`). It stops when you leave the screen, change line, start a watch from the new-watch screen
   (the watch screen takes over), or stop the watch. The background service never fetches the route view; it keeps
-  polling only the one watched stop every 35 s. Stop lists are cached per (line_ref, day), and parallel requests for
+  polling only the one watched stop every 60 s. Stop lists are cached per (line_ref, day), and parallel requests for
   the same list are shared.
 
 ## Trigger logic (and the live evidence behind it)
@@ -229,19 +337,21 @@ platform, dropped off the origin list between 10:15:28 and 10:16:04 (the shared 
 **Arrives at stop X** (poll stop X only):
 1. `AT_STOP_GPS`: fresh fix within **150 m** of the stop (`arriveRadiusMeters`). 150 m rather than 200 m so that
    stop 2 (180 m from Savidor) doesn't fire while the bus is still standing at the origin.
-2. `AT_STOP_ETA`: trip is live (fresh fix) **and** `eta - now <= 1 min` **and** fix ≤ 1000 m from the stop.
+2. `AT_STOP_ETA`: trip is live (fresh fix) **and** `eta - now <= 2 min` **and** fix ≤ 1500 m from the stop
+   (v0.3 with 35 s polls: 1 min / 1000 m).
    ETAs slide in traffic (Azrieli: 10:09 → 10:10 → 10:11 while the bus crawled ~900 m away), hence the distance guard.
    An ETA without GPS (trip not started) never fires.
 3. `DROPPED_AT_STOP`: the trip drops off the stop's list. SIRI removes a visit when the bus is at/near the stop,
-   so for a live trip this means "arrived / just passed". A never-live trip counts only if its ETA was within 3 min.
-* Live examples (replayed in `TriggerReplayTest`): stop 36926: ETA rule fired at 10:07:17 (fix ~600 m, ETA 10:08), and
-  the trip dropped at 10:07:54. Azrieli: ETA rule fired at 10:10:27, and the trip dropped at 10:11:03.
+   so for a live trip this means "arrived / just passed". A never-live trip counts only if its ETA was within 4 min (3 min before v0.4).
+* Live examples (replayed in `TriggerReplayTest`): stop 36926: the ETA rule fires at 10:06:40 (v0.3: 10:07:17, fix
+  ~600 m, ETA 10:08), and the trip dropped at 10:07:54. Azrieli: it fires at 10:09:08 (v0.3: 10:10:27), and the trip
+  dropped at 10:11:03.
 
 **Reliability:** a poll counts for "dropped" decisions only if it succeeded, had no `errors`, and the stop returned at
 least one visit of any line, so an empty or broken response is never read as "the bus left". HTTP errors are shown in
 the status and polling continues. GPS fixes older than 3 min are ignored.
 
-All thresholds are in `shared/.../trigger/TriggerConfig.kt`. Poll interval: 35 s.
+All thresholds are in `shared/.../trigger/TriggerConfig.kt`. Poll interval: **60 s** (`Polling.INTERVAL`, v0.4; 35 s before).
 
 ## Background behaviour (Android)
 
@@ -295,8 +405,8 @@ Debug build, signed with the local debug key.
 
 ## Known limitations / risks
 
-* curlbus is community-run and has no documented rate limits. We make one call per 35 s per active watch, plus
-  ~5 calls per 45 s while the live route view is on screen.
+* curlbus is community-run and has no documented rate limits. We make one call per 60 s per active watch (two in
+  broken-stop fallback), plus ~5 calls per 60 s while the live route view or the map is on screen.
   Some stops always return HTTP 500 (e.g. 27117 on line 194). The error shows in the status and polling continues.
   If you *watch* such a stop, there's no neighbour fallback (the trigger needs that exact stop).
 * Route view %: the stop-to-stop polyline is a straight chord between stops, so on long curvy legs the % can be off

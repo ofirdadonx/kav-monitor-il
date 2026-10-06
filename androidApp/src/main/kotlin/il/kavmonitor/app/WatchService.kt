@@ -12,6 +12,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.core.app.ServiceCompat
 import il.kavmonitor.shared.data.ApiJson
 import il.kavmonitor.shared.model.WatchSpec
+import il.kavmonitor.shared.watch.WatchEdits
 import il.kavmonitor.shared.watch.WatchEngine
 import il.kavmonitor.shared.watch.WatchPhase
 import il.kavmonitor.shared.watch.WatchStateHolder
@@ -38,6 +39,7 @@ class WatchService : Service() {
     private var generation = 0
     private var job: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var currentSpec: WatchSpec? = null
 
     @get:VisibleForTesting
     val isPolling: Boolean get() = synchronized(lock) { job?.isActive == true }
@@ -55,6 +57,7 @@ class WatchService : Service() {
                 startWatch(spec)
             }
             ACTION_STOP -> stopEverything()
+            ACTION_EXTEND -> extendWatch(intent.getIntExtra(EXTRA_MINUTES, 15))
             else -> stopEverything() // restarted by the system without a spec: nothing to resume
         }
         return START_NOT_STICKY
@@ -68,6 +71,8 @@ class WatchService : Service() {
         val engine = app.graph.newWatchEngine()
         synchronized(lock) {
             job?.cancel() // replace a running watch: never two pollers
+            WatchEdits.clear()
+            currentSpec = spec
             val gen = ++generation
             acquireWakeLock(spec.durationMinutes)
             job = scope.launch {
@@ -76,10 +81,10 @@ class WatchService : Service() {
                     onState = { st ->
                         ifCurrent(gen) {
                             WatchStateHolder.update(st)
-                            if (st.isActive) Notifications.updateStatus(this@WatchService, spec, st)
+                            if (st.isActive) Notifications.updateStatus(this@WatchService, spec, st, app.graph.clock.now())
                         }
                     },
-                    onTrigger = { ev, st -> ifCurrent(gen) { Notifications.alert(this@WatchService, spec, ev, estimated = st.fallback != null) } },
+                    onTrigger = { ev, st -> ifCurrent(gen) { Notifications.alert(this@WatchService, spec, ev, estimated = st.fallback != null, walkMinutes = st.leavePlan?.walkMinutes) } },
                 )
                 // Time limit reached.
                 ifCurrent(gen) {
@@ -92,12 +97,29 @@ class WatchService : Service() {
         }
     }
 
+    /**
+     * Extends the running watch in place: same job, same engine state (seen buses, alerts, fallback); the engine picks
+     * up the new end time on its next loop turn, the UI/notification and the wake lock are updated right away.
+     */
+    private fun extendWatch(minutes: Int) = synchronized(lock) {
+        val spec = currentSpec
+        if (job?.isActive != true || spec == null) return@synchronized
+        WatchEdits.extend(spec, minutes)
+        val st = WatchStateHolder.state.value?.takeIf { it.isActive && it.spec.recentKey == spec.recentKey } ?: return@synchronized
+        val updated = st.copy(endsAt = WatchEdits.endsAt(spec, st.startedAt))
+        WatchStateHolder.update(updated)
+        Notifications.updateStatus(this, spec, updated, app.graph.clock.now())
+        val left = ((updated.endsAt.toEpochMilliseconds() - System.currentTimeMillis()) / 60_000L).toInt() + 1
+        acquireWakeLock(left.coerceAtLeast(1))
+    }
+
     private inline fun ifCurrent(gen: Int, block: () -> Unit) = synchronized(lock) { if (gen == generation) block() }
 
     private fun stopEverything() = synchronized(lock) {
         generation++ // late callbacks of the cancelled run are dropped
         job?.cancel()
         job = null
+        currentSpec = null
         WatchStateHolder.state.value?.let { if (it.isActive) WatchStateHolder.update(it.copy(phase = WatchPhase.STOPPED)) }
         finishLocked()
     }
@@ -146,12 +168,17 @@ class WatchService : Service() {
     companion object {
         private const val ACTION_START = "il.kavmonitor.app.action.START"
         private const val ACTION_STOP = "il.kavmonitor.app.action.STOP"
+        private const val ACTION_EXTEND = "il.kavmonitor.app.action.EXTEND"
         private const val EXTRA_SPEC = "spec"
+        private const val EXTRA_MINUTES = "minutes"
 
         fun startIntent(context: Context, spec: WatchSpec): Intent = Intent(context, WatchService::class.java)
             .setAction(ACTION_START)
             .putExtra(EXTRA_SPEC, ApiJson.encodeToString(WatchSpec.serializer(), spec))
 
         fun stopIntent(context: Context): Intent = Intent(context, WatchService::class.java).setAction(ACTION_STOP)
+
+        fun extendIntent(context: Context, minutes: Int): Intent = Intent(context, WatchService::class.java)
+            .setAction(ACTION_EXTEND).putExtra(EXTRA_MINUTES, minutes)
     }
 }

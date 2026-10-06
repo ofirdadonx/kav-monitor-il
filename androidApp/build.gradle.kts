@@ -1,3 +1,15 @@
+import java.util.Properties
+
+/**
+ * Optional OpenRouteService key for real walking routes (else the keyless FOSSGIS OSRM is used). Only from
+ * `-Pkav.orsApiKey=...` / ~/.gradle/gradle.properties or the git-ignored local.properties (`ors.apiKey=...`):
+ * never committed.
+ */
+val orsApiKey: String = (findProperty("kav.orsApiKey") as String?)
+    ?: rootProject.file("local.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use { load(it) } }.getProperty("ors.apiKey")
+    } ?: ""
+
 plugins {
     alias(libs.plugins.androidApplication)
     // No kotlin-android plugin: AGP 9 has built-in Kotlin support.
@@ -14,8 +26,9 @@ android {
         applicationId = "il.kavmonitor.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.4"
+        buildConfigField("String", "ORS_API_KEY", "\"" + orsApiKey.replace("\"", "") + "\"")
     }
 
     // Release channel. beta: separate app next to the regular one (".beta" id, own label + orange BETA icon),

@@ -1,0 +1,11 @@
+after grant: access=GRANTED updating=true perm=0
+location set: 32.0835,34.799
+denied path ok; starts=2
+location set: 32.0835,34.799
+near Savidor: nearest=GeoFix(lat=32.0835, lon=34.799, accuracyMeters=8.0, time=2026-10-06T15:54:43.557Z) → 20001
+location set: 31.9625,34.8283
+location set: 31.962154,34.8406
+ongoing: מעקב ⁨194⁩ · זמן לצאת | יציאה הבאה ב-18:59 (בעוד 5 דק׳) · עד 19:54 | chronometer=true countdown=true
+location set: 31.962154,34.8439
+alert: צא עכשיו · ⁨194⁩ | מגיע ל⁨שלמה לוי/שער יפו⁩ ב-19:20 · 25 דק׳ הליכה
+after stop: requests stayed at 72, location listeners=0

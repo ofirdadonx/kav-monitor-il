@@ -1,5 +1,6 @@
 package il.kavmonitor.shared.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,10 +27,14 @@ fun App(controller: AppController) {
         MaterialTheme(colorScheme = colors) {
             Surface(Modifier.fillMaxSize()) {
                 val watch by WatchStateHolder.state.collectAsState()
-                when (controller.screen) {
-                    Screen.HOME -> HomeScreen(controller, watch)
-                    Screen.NEW_WATCH -> NewWatchScreen(controller)
-                    Screen.WATCH -> WatchScreen(controller, watch)
+                Box(Modifier.fillMaxSize()) {
+                    when (controller.screen) {
+                        Screen.HOME -> HomeScreen(controller, watch)
+                        Screen.NEW_WATCH -> NewWatchScreen(controller)
+                        Screen.WATCH -> WatchScreen(controller, watch)
+                        Screen.MAP -> RouteMapScreen(controller)
+                    }
+                    BusActionsSheet(controller)
                 }
             }
         }

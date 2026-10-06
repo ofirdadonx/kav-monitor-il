@@ -73,7 +73,7 @@ class NearestLeaveUiTest {
     private val lm get() = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private val nm get() = app.getSystemService(NotificationManager::class.java)
     private val c get() = app.graph.controller
-    private val outDir = File("../docs/screenshots/v0.3.1/nearest_leave").apply { mkdirs() }
+    private val outDir = File("../docs/screenshots/v0.4/nearest_leave").apply { mkdirs() }
     private val log = sharedLog
     private val timeout = 15_000L
 
@@ -136,6 +136,9 @@ class NearestLeaveUiTest {
 
     @Test
     fun nearestStopAndTimeToLeave() {
+        // walking router "down" (HTTP 500): the straight-line estimate is used and labeled as such (the routed path is
+        // covered in WalkMapEditUiTest); keeps this replay's walk times (20 / 25 min) as recorded for v0.3
+        WalkReplay.down = true
         shadowOf(app).grantPermissions(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         openDirection194()
         assertEquals(LocationAccess.GRANTED, c.location.access)
@@ -173,7 +176,8 @@ class NearestLeaveUiTest {
         waitFor("21 דק׳ הליכה (הוגדר ידנית)")
         shot("05_leave_walk_time_manual")
         click("חישוב לפי מיקום")
-        waitFor("20 דק׳ הליכה:")
+        waitFor("20 דק׳ הליכה ·")
+        assertTrue(has("בקו אווירי (הערכה"))
 
         // 4. Start: the service polls ONLY the boarding stop; per-bus leave times
         click("התחל מעקב")
@@ -192,7 +196,9 @@ class NearestLeaveUiTest {
         waitFor("צאו ב-")
         val ongoing = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_STATUS }
         note("ongoing: ${ongoing.extras.getCharSequence(Notification.EXTRA_TITLE)} | ${ongoing.extras.getCharSequence(Notification.EXTRA_TEXT)} | chronometer=${ongoing.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER)} countdown=${ongoing.extras.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN)}")
-        assertTrue(ongoing.extras.getCharSequence(Notification.EXTRA_TEXT).toString().startsWith("צאו ב-"))
+        val ongoingText = ongoing.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
+        assertTrue(ongoingText, ongoingText.startsWith("יציאה הבאה ב-") && ongoingText.contains("דק׳) · עד "))
+        assertTrue(ongoing.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", "") == "מעקב 194 · זמן לצאת")
         assertTrue(ongoing.extras.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN))
         shot("06_leave_watch_screen")
 
@@ -202,7 +208,9 @@ class NearestLeaveUiTest {
         val alert = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_ALERT }
         val title = alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString()
         note("alert: $title | ${alert.extras.getCharSequence(Notification.EXTRA_TEXT)}")
-        assertTrue(title, title.startsWith("צא עכשיו — 194 מגיע לשלמה לוי/שער יפו ב-"))
+        assertEquals("צא עכשיו · 194", title.replace("\u2068", "").replace("\u2069", ""))
+        val body = alert.extras.getCharSequence(Notification.EXTRA_TEXT).toString().replace("\u2068", "").replace("\u2069", "")
+        assertTrue(body, body.startsWith("מגיע לשלמה לוי/שער יפו ב-") && body.contains("דק׳ הליכה"))
         val ev = WatchStateHolder.state.value!!.alerts.single()
         assertEquals(TriggerReason.LEAVE_NOW, ev.reason)
         assertEquals("7692269", ev.vehicleRef)

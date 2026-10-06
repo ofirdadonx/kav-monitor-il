@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.resources.Res
+import il.kavmonitor.shared.resources.trigger_row_leave
+import il.kavmonitor.shared.resources.trigger_row_arrives
+import il.kavmonitor.shared.resources.trigger_row_departs
 import il.kavmonitor.shared.resources.ago_hours
 import il.kavmonitor.shared.resources.ago_minutes
 import il.kavmonitor.shared.resources.ago_seconds
@@ -36,6 +39,21 @@ fun triggerText(spec: WatchSpec): String = when (spec.trigger) {
     TriggerType.DEPARTS_ORIGIN -> stringResource(Res.string.trigger_departs_short, isolate(spec.origin.name))
     TriggerType.ARRIVES_AT_STOP -> stringResource(Res.string.trigger_arrives_short, isolate(spec.stop.name))
     TriggerType.LEAVE_FOR_STOP -> stringResource(Res.string.trigger_leave_short, isolate(spec.stop.name), spec.leave?.walkMinutes ?: 0)
+}
+
+/** Trigger row value of the watch card / recents: "יציאה מהמוצא" / "הגעה ל<stop>" / "זמן לצאת ל<stop>". */
+@Composable
+fun triggerRowText(spec: WatchSpec): String = when (spec.trigger) {
+    TriggerType.DEPARTS_ORIGIN -> stringResource(Res.string.trigger_row_departs)
+    TriggerType.ARRIVES_AT_STOP -> stringResource(Res.string.trigger_row_arrives, isolate(spec.stop.name))
+    TriggerType.LEAVE_FOR_STOP -> stringResource(Res.string.trigger_row_leave, isolate(spec.stop.name))
+}
+
+/** Destination name without the city suffix ("name, city" in [WatchSpec.directionLabel]) and the city separately. */
+fun destinationParts(spec: WatchSpec): Pair<String, String?> {
+    val label = spec.directionLabel
+    val i = label.lastIndexOf(", ")
+    return if (i > 0) label.substring(0, i) to label.substring(i + 2) else label to null
 }
 
 /** "2026-10-05" → "05/10" (day/month, Israeli order). */

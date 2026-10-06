@@ -19,6 +19,10 @@ import il.kavmonitor.shared.trigger.TriggerConfig
 import il.kavmonitor.shared.ui.AppController
 import io.ktor.client.HttpClient
 import il.kavmonitor.shared.route.RouteLiveController
+import il.kavmonitor.shared.walk.OpenRouteServiceRouter
+import il.kavmonitor.shared.walk.OsrmFootRouter
+import il.kavmonitor.shared.walk.WalkPlanner
+import il.kavmonitor.shared.walk.WalkingRouter
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -38,7 +42,11 @@ class AppGraph(
     val routeLiveSource: LiveDataSource = live,
     /** User location for the "nearest stop" sections (Android: LocationManager; tests: shadowed). */
     val locationProvider: LocationProvider = NoLocationProvider,
+    /** Pedestrian routing: OSRM foot (keyless) by default, OpenRouteService when [orsApiKey] is set (never committed). */
+    orsApiKey: String? = null,
+    val walkingRouter: WalkingRouter = if (!orsApiKey.isNullOrBlank()) OpenRouteServiceRouter(httpClient, orsApiKey) else OsrmFootRouter(httpClient),
 ) {
+    val walkPlanner = WalkPlanner(walkingRouter)
     val routes = RouteRepository(static, clock)
     /** curlbus stops answering HTTP 5xx, remembered for [BrokenStops.DEFAULT_TTL]. */
     val brokenStops = BrokenStops(settings, clock)
@@ -52,6 +60,6 @@ class AppGraph(
     val recents = RecentsStore(settings)
     val location = LocationController(locationProvider, settings)
     val controller: AppController by lazy {
-        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops)
+        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops, walkPlanner = walkPlanner)
     }
 }

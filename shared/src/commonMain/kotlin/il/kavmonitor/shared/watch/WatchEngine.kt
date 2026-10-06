@@ -51,7 +51,7 @@ class WatchEngine(
     ): WatchState {
         val detector = TriggerDetector(spec, config)
         val start = clock.now()
-        var state = WatchState(spec, WatchPhase.RUNNING, start, start + spec.durationMinutes.minutes,
+        var state = WatchState(spec, WatchPhase.RUNNING, start, WatchEdits.endsAt(spec, start),
             leavePlan = if (spec.trigger == TriggerType.LEAVE_FOR_STOP) LeavePlanHolder.planFor(spec) else null)
         var fallback: FallbackPlan? = null
         var serverErrors = 0
@@ -72,6 +72,7 @@ class WatchEngine(
         onState(state)
         while (true) {
             val now = clock.now()
+            state = state.copy(endsAt = WatchEdits.endsAt(spec, start)) // "extend" edits apply without a restart
             if (now >= state.endsAt) break
             var retrySoon = false
             state = try {
@@ -139,6 +140,7 @@ class WatchEngine(
                 }
                 state.copy(lastAttemptAt = clock.now(), lastError = err, polls = state.polls + 1, fallback = fallback)
             }
+            state = state.copy(endsAt = WatchEdits.endsAt(spec, start))
             onState(state)
             val remaining = state.endsAt - clock.now()
             if (remaining <= kotlin.time.Duration.ZERO) break

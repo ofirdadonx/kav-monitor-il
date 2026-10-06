@@ -101,8 +101,10 @@ data class LeavePlan(
     val walkMinutes: Int,
     val bufferMinutes: Int = 1,
     val manual: Boolean = false,
-    /** Straight-line distance user → boarding stop the walk time was computed from (null for manual). */
+    /** Distance user → boarding stop the walk time was computed from (null for manual): walking route or straight line. */
     val walkDistanceMeters: Double? = null,
+    /** True when [walkDistanceMeters]/[walkMinutes] come from a real pedestrian route (OSRM/ORS), false = straight-line estimate. */
+    val walkRouted: Boolean = false,
 ) {
     val leadMinutes: Int get() = walkMinutes + bufferMinutes
 }

@@ -77,6 +77,8 @@ import il.kavmonitor.shared.resources.trigger_leave
 import il.kavmonitor.shared.resources.choose_boarding_stop
 import il.kavmonitor.shared.resources.walk_title
 import il.kavmonitor.shared.resources.walk_auto
+import il.kavmonitor.shared.resources.walk_routed_source
+import il.kavmonitor.shared.resources.walk_routed
 import il.kavmonitor.shared.resources.walk_manual
 import il.kavmonitor.shared.resources.walk_default
 import il.kavmonitor.shared.resources.walk_reset
@@ -93,7 +95,7 @@ private val DURATIONS = listOf(15, 30, 45, 60, 90, 120)
 
 @Composable
 fun NewWatchScreen(c: AppController) {
-    val now by produceState(Clock.System.now()) { while (true) { delay(1000); value = Clock.System.now() } }
+    val now by produceState(c.clock.now()) { while (true) { delay(1000); value = c.clock.now() } }
     val selected = c.selectedDirection
     val readyStops = (c.stops as? Loadable.Ready)?.value
 
@@ -108,7 +110,10 @@ fun NewWatchScreen(c: AppController) {
 
     // Live route view: refreshes only while this screen shows a direction (detached on leave / direction change).
     if (selected != null && readyStops != null) {
-        val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) c.targetStopCode else null
+        val chosen = if (c.trigger != TriggerType.DEPARTS_ORIGIN) c.targetStopCode else null
+        // Following a bus with no target chosen: target the stop nearest the user so curlbus returns the followed
+        // bus's ETA there (at most one extra stop in the sample).
+        val target = chosen ?: c.followTargetStop(selected.lineRef, readyStops.stops, null)?.code
         DisposableEffect(selected.lineRef, readyStops, target) {
             val token = c.routeLive.attach(
                 RouteLiveRequest(selected.lineRef, selected.routeShortName, selected.operatorRef, readyStops.stops, target),
@@ -188,10 +193,28 @@ fun NewWatchScreen(c: AppController) {
                                 },
                                 onUse = { c.useNearestStop(it) },
                                 isBroken = c::isStopBroken,
+                                walk = c::autoWalk, requestWalk = c::requestWalk,
                             )
                         }
                         val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) list.stops.firstOrNull { it.code == c.targetStopCode } else null
-                        routeLiveItems(c.routeLive.state?.takeIf { it.request.lineRef == selected.lineRef }, now, target, keyPrefix = "nw")
+                        val followed = c.followed?.takeIf { it.lineRef == selected.lineRef }
+                        val liveState = c.routeLive.state?.takeIf { it.request.lineRef == selected.lineRef }
+                        if (followed != null) {
+                            item(key = "nw-follow") {
+                                c.followInfo(liveState?.snapshot, list.stops, target, now)?.let { FollowCard(followed, it, now, onUnfollow = c::unfollow) }
+                            }
+                        }
+                        routeLiveItems(
+                            c.routeLive.state?.takeIf { it.request.lineRef == selected.lineRef }, now, target, keyPrefix = "nw",
+                            onOpenMap = {
+                                c.openMap(
+                                    il.kavmonitor.shared.route.RouteLiveRequest(selected.lineRef, selected.routeShortName, selected.operatorRef, list.stops, target?.code),
+                                    selected.routeShortName,
+                                )
+                            },
+                            onBusLongPress = { c.openBusActions(it.toBusRef(selected.lineRef, selected.routeShortName)) },
+                            followedKey = { b -> followed != null && il.kavmonitor.shared.follow.FollowBus.sameBus(followed, b.toBusRef(selected.lineRef, selected.routeShortName)) },
+                        )
                         item { HorizontalDivider() }
                         item { Text(stringResource(Res.string.trigger_title), style = MaterialTheme.typography.titleMedium) }
                         item {
@@ -283,12 +306,16 @@ private fun DirectionCard(d: Direction, stops: Loadable<StopList>?, onClick: (()
     }
 }
 
+/** "מוצא / יעד / התראה" rows: a fixed-width label column and the value (direction cards, watch card, recents). */
 @Composable
-private fun LabeledRow(label: String, value: String, sub: String?) {
+internal fun LabeledRow(
+    label: String, value: String, sub: String?,
+    valueStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
+) {
     Row(verticalAlignment = Alignment.Top) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(56.dp).padding(top = 2.dp))
         Column(Modifier.weight(1f)) {
-            Text(value, style = MaterialTheme.typography.bodyLarge)
+            Text(value, style = valueStyle)
             if (!sub.isNullOrBlank()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -305,11 +332,15 @@ private fun WalkPanel(c: AppController, stop: il.kavmonitor.shared.model.RouteSt
                 Text(stringResource(Res.string.walk_need_stop), style = MaterialTheme.typography.bodySmall, color = muted)
                 return@Column
             }
+            // one walking-route request per selected stop / ~50 m of movement (cached), straight line until it answers
+            LaunchedEffect(stop.code, c.location.fix?.let { il.kavmonitor.shared.walk.WalkPlanner.key(it.lat, it.lon, stop.code) }) { c.requestWalk(stop) }
             val plan = c.leavePlan(stop)
             val auto = c.autoWalk(stop)
             Text(
                 when {
                     plan.manual -> stringResource(Res.string.walk_manual, plan.walkMinutes)
+                    plan.walkDistanceMeters != null && plan.walkRouted ->
+                        stringResource(Res.string.walk_routed, distanceText(plan.walkDistanceMeters), plan.walkMinutes)
                     plan.walkDistanceMeters != null -> stringResource(
                         Res.string.walk_auto, plan.walkMinutes, distanceText(plan.walkDistanceMeters),
                         TriggerConfig.WALK_DETOUR_FACTOR.toString(), TriggerConfig.WALK_SPEED_M_PER_MIN.toInt(),
@@ -318,6 +349,9 @@ private fun WalkPanel(c: AppController, stop: il.kavmonitor.shared.model.RouteSt
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (!plan.manual && plan.walkRouted) {
+                Text(stringResource(Res.string.walk_routed_source, c.walkPlanner.routerName), style = MaterialTheme.typography.bodySmall, color = muted)
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { c.changeWalkMinutes(-1, stop) }, enabled = plan.walkMinutes > 0) { Text("−") }
                 Text(stringResource(Res.string.walk_minutes, plan.walkMinutes), style = MaterialTheme.typography.titleMedium)

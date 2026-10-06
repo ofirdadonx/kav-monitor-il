@@ -1,7 +1,14 @@
 package il.kavmonitor.app
 
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import com.russhwolf.settings.MapSettings
 import il.kavmonitor.shared.AppGraph
+import il.kavmonitor.shared.walk.OsrmFootRouter
 import il.kavmonitor.shared.data.ApiJson
 import il.kavmonitor.shared.data.CurlbusLiveDataSource
 import il.kavmonitor.shared.data.StrideStaticDataSource
@@ -33,7 +40,7 @@ import kotlin.time.Instant
 object TestConfig {
     var pollInterval: Duration = 2.seconds
     var routeLiveInterval: Duration = 3.seconds
-    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.reset(); FallbackReplay.active = false }
+    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.reset(); FallbackReplay.active = false; WalkReplay.down = false; RouteReplay.hiddenVehicles.clear() }
 }
 
 /** Wall clock that can run faster (time-out tests). */
@@ -88,6 +95,8 @@ class TestApp : KavMonitorApp() {
                 "curlbus.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/'))
                     else if (path == "/20001") FakeCurlbus.next() else RouteReplay.stop(path.trim('/'))
                 "curlbus-route.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/')) else RouteReplay.stop(path.trim('/'))
+                // real FOSSGIS OSRM foot answers recorded 2026-10-06 for the test locations; other pairs → 500 → straight line
+                "osrm.test" -> if (WalkReplay.down) null else WalkReplay.route(path)
                 else -> null
             }
             if (body == null) respond("500 Internal Server Error", HttpStatusCode.InternalServerError)
@@ -108,6 +117,7 @@ class TestApp : KavMonitorApp() {
             appVersion = BuildConfig.VERSION_NAME,
             routeLiveInterval = TestConfig.routeLiveInterval,
             locationProvider = locationProvider,
+            walkingRouter = OsrmFootRouter(client, baseUrl = "http://osrm.test"),
         )
     }
 
@@ -120,6 +130,15 @@ fun fixture(name: String): String =
     requireNotNull(TestApp::class.java.getResource("/fixtures/$name")) { "missing fixture $name" }.readText()
 
 fun fixtureOrNull(name: String): String? = TestApp::class.java.getResource("/fixtures/$name")?.readText()
+
+/** Recorded OSRM foot routes (fixtures/osrm/<fromLon>,<fromLat>;<toLon>,<toLat>.json); [down] simulates an outage. */
+object WalkReplay {
+    @Volatile var down = false
+    fun route(path: String): String? {
+        val coords = java.net.URLDecoder.decode(path, "UTF-8").substringAfter("/route/v1/foot/")
+        return fixtureOrNull("osrm/$coords.json")
+    }
+}
 
 /** Stride answered from real responses recorded 2026-10-06 (today's gtfs_ride_stops not loaded, like in reality). */
 object FixtureStride {
@@ -166,7 +185,18 @@ fun shiftTimes(json: String, anchor: Instant, now: Instant = TestClock.now()): S
  */
 object RouteReplay {
     private val anchor = Instant.parse("2026-10-06T14:52:20+03:00")
-    fun stop(code: String): String? = fixtureOrNull("route194_1451/$code.json")?.let { shiftTimes(it, anchor) }
+    /** Vehicles removed from every answer (a trip that ended / lost its GPS). */
+    val hiddenVehicles: MutableSet<String> = java.util.concurrent.CopyOnWriteArraySet()
+    fun stop(code: String): String? = fixtureOrNull("route194_1451/$code.json")?.let { hide(shiftTimes(it, anchor)) }
+    private fun hide(json: String): String {
+        if (hiddenVehicles.isEmpty()) return json
+        val o = ApiJson.parseToJsonElement(json).jsonObject
+        val visits = o["visits"]?.jsonObject ?: return json
+        val filtered = JsonObject(visits.mapValues { (_, arr) ->
+            JsonArray(arr.jsonArray.filter { it.jsonObject["vehicle_ref"]?.jsonPrimitive?.contentOrNull !in hiddenVehicles })
+        })
+        return JsonObject(o + ("visits" to filtered)).toString()
+    }
 }
 
 /**

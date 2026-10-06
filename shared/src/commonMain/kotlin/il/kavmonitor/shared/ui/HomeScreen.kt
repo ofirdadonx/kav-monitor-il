@@ -23,6 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import il.kavmonitor.shared.resources.Res
+import il.kavmonitor.shared.resources.label_trigger
+import il.kavmonitor.shared.resources.dir_destination
+import il.kavmonitor.shared.resources.dir_origin
 import il.kavmonitor.shared.resources.duration_minutes
 import il.kavmonitor.shared.resources.app_version
 import il.kavmonitor.shared.resources.home_active_watch
@@ -68,11 +71,14 @@ fun HomeScreen(c: AppController, watch: WatchState?) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(lineTitle(spec), style = MaterialTheme.typography.titleMedium)
-                            Text("← " + isolate(spec.directionLabel), style = MaterialTheme.typography.bodyMedium)
-                            // triggerText isolates the stop name, so "רציפים A" and " · 60 דק׳" no longer reorder
-                            Text(
-                                triggerText(spec) + " · " + stringResource(Res.string.duration_minutes, spec.durationMinutes),
-                                style = MaterialTheme.typography.bodySmall,
+                            val small = MaterialTheme.typography.bodyMedium
+                            LabeledRow(stringResource(Res.string.dir_origin), isolate(spec.origin.name), null, valueStyle = small)
+                            LabeledRow(stringResource(Res.string.dir_destination), isolate(destinationParts(spec).first), null, valueStyle = small)
+                            // isolated stop name, so "רציפים A" and " · 60 דק׳" don't reorder
+                            LabeledRow(
+                                stringResource(Res.string.label_trigger),
+                                triggerRowText(spec) + " · " + stringResource(Res.string.duration_minutes, spec.durationMinutes),
+                                null, valueStyle = small,
                             )
                         }
                         TextButton(onClick = { c.recents.remove(spec) }) { Text(stringResource(Res.string.recent_remove)) }

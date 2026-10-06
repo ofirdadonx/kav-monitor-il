@@ -6,4 +6,6 @@ import il.kavmonitor.shared.model.WatchSpec
 interface WatchLauncher {
     fun start(spec: WatchSpec)
     fun stop()
+    /** Extends the running watch by [minutes] without restarting it. */
+    fun extend(minutes: Int) {}
 }

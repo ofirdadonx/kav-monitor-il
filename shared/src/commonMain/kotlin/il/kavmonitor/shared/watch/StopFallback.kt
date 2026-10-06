@@ -32,7 +32,7 @@ object StopFallback {
     /** Same radius as the arrival rule: a fix this close to the target counts as "at the target". */
     const val NEAR_TARGET_METERS = 150.0
     /** An estimated target ETA this far in the past (bus not listed upstream any more) means it has passed. */
-    val PASSED_ETA_SLACK: Duration = 2.minutes
+    val PASSED_ETA_SLACK: Duration = 3.minutes // 2 min with 35 s polls
 
     fun plan(trigger: TriggerType, stops: List<RouteStop>, target: RouteStop, isBroken: (String) -> Boolean): FallbackPlan? {
         val i = stops.indexOfFirst { it.code == target.code && it.sequence == target.sequence }

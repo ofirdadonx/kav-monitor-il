@@ -1,0 +1,8 @@
+== after first poll ==
+channel=watch_status ongoing=true title=מעקב ⁨194⁩ · יציאה מהמוצא | text=הבא יוצא ב-18:52 · עד 19:51 | actions=עצור, +15 דק׳
+== after departure alert ==
+channel=bus_alert_v1 ongoing=false title=⁨194⁩ יצא מהמוצא | text=יצא ב-18:51 מ⁨רכבת תל אביב- סבידור/…⁩ | actions=null
+channel=watch_status ongoing=true title=מעקב ⁨194⁩ · יציאה מהמוצא | text=הבא יוצא ב-19:07 · עד 19:51 | actions=עצור, +15 דק׳
+# requests before stop check=38, after 7000ms quiet=38: []
+== after Stop ==
+channel=bus_alert_v1 ongoing=false title=⁨194⁩ יצא מהמוצא | text=יצא ב-18:51 מ⁨רכבת תל אביב- סבידור/…⁩ | actions=null

@@ -16,11 +16,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import il.kavmonitor.shared.model.TriggerType
+import il.kavmonitor.shared.notify.NotificationTexts
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.trigger.LeaveStatus
 import il.kavmonitor.shared.trigger.TriggerEvent
 import il.kavmonitor.shared.trigger.TriggerReason
 import il.kavmonitor.shared.util.israelClock
+import il.kavmonitor.shared.watch.WatchEdits
 import il.kavmonitor.shared.watch.WatchState
 
 object Notifications {
@@ -61,57 +63,29 @@ object Notifications {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun triggerLabel(context: Context, spec: WatchSpec) = when (spec.trigger) {
-        TriggerType.DEPARTS_ORIGIN -> context.getString(R.string.notif_status_departs, spec.origin.name)
-        TriggerType.ARRIVES_AT_STOP -> context.getString(R.string.notif_status_arrives, spec.stop.name)
-        TriggerType.LEAVE_FOR_STOP -> context.getString(R.string.notif_status_leave, spec.stop.name)
-    }
-
-    /** Time-to-leave line for the ongoing notification (null for other triggers / before the first poll). */
-    private fun leaveLine(context: Context, spec: WatchSpec, state: WatchState?): Pair<String, Long?>? {
-        if (spec.trigger != TriggerType.LEAVE_FOR_STOP || state?.lastSuccessAt == null) return null
-        val bus = state.nextLeaveBus ?: return context.getString(R.string.notif_leave_none) to null
-        val leave = bus.leaveAt ?: return null
-        val eta = bus.eta?.israelClock() ?: "—"
-        val kind = context.getString(if (bus.hasFreshGps) R.string.notif_eta_live else R.string.notif_eta_scheduled)
-        val now = System.currentTimeMillis()
-        return if (bus.leaveStatus == LeaveStatus.LEAVE_NOW || leave.toEpochMilliseconds() <= now) {
-            context.getString(R.string.notif_leave_now, eta, kind) to null
-        } else {
-            val mins = kotlin.math.ceil((leave.toEpochMilliseconds() - now) / 60_000.0).toInt()
-            context.getString(R.string.notif_leave_next, leave.israelClock(), mins, eta, kind) to leave.toEpochMilliseconds()
-        }
-    }
-
-    fun status(context: Context, spec: WatchSpec, state: WatchState?): Notification {
-        val until = state?.endsAt?.israelClock() ?: ""
-        val line = when {
-            state?.lastSuccessAt != null ->
-                context.getString(R.string.notif_status_line, state.lastSuccessAt!!.israelClock(true), state.busesSeen, until)
-            else -> context.getString(R.string.notif_status_waiting, until)
-        }
-        val leave = leaveLine(context, spec, state)
-        val main = leave?.first?.let { it + "\n" + line } ?: line
-        val withFallback = if (state?.fallback != null) main + "\n" + context.getString(R.string.notif_fallback) else main
-        val text = state?.lastError?.let { err ->
-            val msg = errorText(context, err)
-            val line = state.lastSuccessAt?.let { context.getString(R.string.notif_status_error, msg, it.israelClock(true)) }
-                ?: context.getString(R.string.notif_status_error_none, msg)
-            line + "\n" + withFallback
-        } ?: withFallback
+    /**
+     * Ongoing watch notification. Texts come from the shared [NotificationTexts] (unit-tested: short, no codes/vehicle
+     * numbers/seconds in the collapsed view); details only in the expanded BigText.
+     */
+    fun status(context: Context, spec: WatchSpec, state: WatchState?, now: kotlin.time.Instant = kotlin.time.Clock.System.now()): Notification {
+        val txt = NotificationTexts.ongoing(spec, state, now)
         val stop = PendingIntent.getService(
             context, 1, WatchService.stopIntent(context), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val b = NotificationCompat.Builder(context, CHANNEL_STATUS)
-        leave?.second?.let { leaveAtMillis ->
-            // live countdown to the leave time in the notification header, without extra updates
-            b.setWhen(leaveAtMillis).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+        // time to leave: live countdown to the leave time in the header (no extra updates needed)
+        val next = state?.takeIf { spec.trigger == TriggerType.LEAVE_FOR_STOP && it.lastError == null }?.nextLeaveBus
+        val leaveAt = next?.leaveAt?.takeIf { next.leaveStatus == LeaveStatus.WAIT && it > now }
+        if (leaveAt != null) {
+            b.setWhen(leaveAt.toEpochMilliseconds()).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+        } else {
+            b.setShowWhen(false)
         }
         return b
             .setSmallIcon(R.drawable.ic_stat_bus)
-            .setContentTitle(context.getString(R.string.notif_status_title, spec.lineName, triggerLabel(context, spec)))
-            .setContentText(leave?.first ?: line)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentTitle(txt.title)
+            .setContentText(txt.body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(txt.body + "\n" + txt.big))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -119,35 +93,29 @@ object Notifications {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openAppIntent(context))
             .addAction(0, context.getString(R.string.notif_action_stop), stop)
+            .also { nb ->
+                if (WatchEdits.canExtend(spec)) {
+                    val extend = PendingIntent.getService(
+                        context, 2, WatchService.extendIntent(context, 15), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    )
+                    nb.addAction(0, context.getString(R.string.notif_action_extend), extend)
+                }
+            }
             .build()
     }
 
-    fun updateStatus(context: Context, spec: WatchSpec, state: WatchState) = notify(context, ID_STATUS, status(context, spec, state))
+    fun updateStatus(context: Context, spec: WatchSpec, state: WatchState, now: kotlin.time.Instant = kotlin.time.Clock.System.now()) =
+        notify(context, ID_STATUS, status(context, spec, state, now))
 
-    fun alert(context: Context, spec: WatchSpec, event: TriggerEvent, estimated: Boolean = false) {
-        val title = when (event.reason) {
-            TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS, TriggerReason.LEFT_ORIGIN_SCHEDULED ->
-                context.getString(R.string.alert_departed_title, spec.lineName, spec.origin.name)
-            TriggerReason.AT_STOP_GPS, TriggerReason.AT_STOP_ETA, TriggerReason.DROPPED_AT_STOP ->
-                context.getString(R.string.alert_arrived_title, spec.lineName, spec.stop.name)
-            TriggerReason.LEAVE_NOW ->
-                context.getString(R.string.alert_leave_title, spec.lineName, spec.stop.name, event.eta?.israelClock() ?: "—")
-        }
-        val base = if (event.reason == TriggerReason.LEAVE_NOW) {
-            val lead = event.leadMinutes ?: spec.leave?.leadMinutes ?: 0
-            val buffer = spec.leave?.bufferMinutes ?: 0
-            context.getString(
-                R.string.alert_leave_body, event.vehicleRef ?: "—", (lead - buffer).coerceAtLeast(0), buffer,
-                context.getString(if (event.live) R.string.alert_eta_live else R.string.alert_eta_scheduled),
-            )
-        } else {
-            context.getString(R.string.alert_body, event.vehicleRef ?: "—", event.scheduledDeparture?.israelClock() ?: "—")
-        }
-        val body = base + if (estimated) "\n" + context.getString(R.string.alert_estimated) else ""
+    fun alert(context: Context, spec: WatchSpec, event: TriggerEvent, estimated: Boolean = false, walkMinutes: Int? = null) {
+        val txt = NotificationTexts.alert(spec, event, estimated, walkMinutes)
+        val title = txt.title
+        val body = txt.body
         val n = NotificationCompat.Builder(context, CHANNEL_ALERT)
             .setSmallIcon(R.drawable.ic_stat_bus)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(txt.big ?: body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setDefaults(NotificationCompat.DEFAULT_SOUND)
@@ -163,8 +131,8 @@ object Notifications {
     fun finished(context: Context, spec: WatchSpec) {
         val n = NotificationCompat.Builder(context, CHANNEL_STATUS)
             .setSmallIcon(R.drawable.ic_stat_bus)
-            .setContentTitle(context.getString(R.string.notif_finished_title, spec.lineName))
-            .setContentText(context.getString(R.string.notif_finished_body, spec.durationMinutes))
+            .setContentTitle(NotificationTexts.finished(spec, spec.durationMinutes + WatchEdits.extraMinutes(spec)).title)
+            .setContentText(NotificationTexts.finished(spec, spec.durationMinutes + WatchEdits.extraMinutes(spec)).body)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context))
             .build()
@@ -178,14 +146,4 @@ object Notifications {
         ) return
         NotificationManagerCompat.from(context).notify(id, n)
     }
-}
-
-/** Short Hebrew text for a poll error (raw details only in logcat). */
-internal fun errorText(context: Context, err: il.kavmonitor.shared.data.FetchError): String = when (err.kind) {
-    il.kavmonitor.shared.data.ErrorKind.SERVER -> err.stopCode?.let { context.getString(R.string.notif_err_server_stop, it) }
-        ?: context.getString(R.string.notif_err_server)
-    il.kavmonitor.shared.data.ErrorKind.NETWORK -> context.getString(R.string.notif_err_network)
-    il.kavmonitor.shared.data.ErrorKind.TIMEOUT -> context.getString(R.string.notif_err_timeout)
-    il.kavmonitor.shared.data.ErrorKind.SOURCE -> context.getString(R.string.notif_err_source)
-    il.kavmonitor.shared.data.ErrorKind.OTHER -> context.getString(R.string.notif_err_other)
 }

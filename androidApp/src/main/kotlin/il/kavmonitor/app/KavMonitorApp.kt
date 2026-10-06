@@ -16,6 +16,7 @@ open class KavMonitorApp : Application() {
         // raw error details (exception text) go to logcat only; the UI shows short Hebrew messages
         il.kavmonitor.shared.data.ErrorLog.sink = { msg, e -> android.util.Log.w("KavMonitor", msg, e) }
         Notifications.createChannels(this)
+        il.kavmonitor.shared.map.MapConfig.userAgent = il.kavmonitor.shared.data.USER_AGENT
         graph = createGraph()
     }
 
@@ -25,6 +26,7 @@ open class KavMonitorApp : Application() {
         launcher = launcher,
         appVersion = BuildConfig.VERSION_NAME,
         locationProvider = locationProvider,
+        orsApiKey = BuildConfig.ORS_API_KEY.takeIf { it.isNotBlank() },
     )
 }
 

@@ -42,6 +42,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
+            // On-demand route map: OpenStreetMap tiles, no API key
+            implementation("org.osmdroid:osmdroid-android:6.1.20")
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)

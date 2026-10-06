@@ -98,7 +98,7 @@ class WatchServiceStopTest {
         assertTrue(sc.get().isPolling)
         assertTrue(sc.get().isWakeLockHeld)
         assertNotNull(ongoing())
-        val stop = ongoing()!!.actions.single()
+        val stop = ongoing()!!.actions.first { it.title.toString() == "עצור" }
         assertEquals("עצור", stop.title.toString())
         val stopIntent: Intent = shadowOf(stop.actionIntent).savedIntent
         sc.withIntent(stopIntent).startCommand(0, 2)

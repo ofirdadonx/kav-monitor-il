@@ -21,4 +21,8 @@ class AndroidWatchLauncher(private val context: Context) : WatchLauncher {
     override fun stop() {
         context.startService(WatchService.stopIntent(context))
     }
+
+    override fun extend(minutes: Int) {
+        context.startService(WatchService.extendIntent(context, minutes))
+    }
 }

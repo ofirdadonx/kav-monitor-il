@@ -1,5 +1,8 @@
 package il.kavmonitor.shared.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import il.kavmonitor.shared.trigger.LeaveStatus
 import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.resources.bus_departed_late
@@ -164,15 +167,26 @@ fun BusView.toDetails(spec: WatchSpec, stops: List<RouteStop>?, observedDepartur
 }
 
 @Composable
-fun BusDetailsCard(b: BusDetails, now: Instant, modifier: Modifier = Modifier) {
+fun BusDetailsCard(
+    b: BusDetails,
+    now: Instant,
+    modifier: Modifier = Modifier,
+    /** Long-press → vehicle actions sheet (null = no actions here). */
+    onLongPress: (() -> Unit)? = null,
+    followed: Boolean = false,
+) {
     val small = MaterialTheme.typography.bodySmall
-    Card(modifier.fillMaxWidth()) {
+    val press = if (onLongPress != null) {
+        Modifier.pointerInput(b.key) { detectTapGestures(onLongPress = { onLongPress() }) }
+    } else Modifier
+    Card(modifier.fillMaxWidth().then(press).testTag("bus-card-" + b.key)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(Res.string.bus_vehicle, b.vehicleRef ?: stringResource(Res.string.unknown)),
                     style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
                 )
+                if (followed) Text("📍 במעקב  ", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 if (b.alerted) Text(stringResource(Res.string.bus_alerted), color = MaterialTheme.colorScheme.primary)
                 b.fraction?.let {
                     Text(

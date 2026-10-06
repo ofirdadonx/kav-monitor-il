@@ -110,7 +110,7 @@ class RouteLiveController(
     }
 
     companion object {
-        val DEFAULT_INTERVAL: Duration = 45.seconds
+        val DEFAULT_INTERVAL: Duration = il.kavmonitor.shared.trigger.Polling.INTERVAL
         val MIN_GAP_ON_TARGET_CHANGE: Duration = 10.seconds
     }
 }

@@ -55,7 +55,7 @@ class AppUiTest {
         @JvmStatic @BeforeClass
         fun config() {
             TestConfig.reset()
-            if (TestApp.LIVE) { TestConfig.pollInterval = 35.seconds; TestConfig.routeLiveInterval = 45.seconds }
+            if (TestApp.LIVE) { TestConfig.pollInterval = il.kavmonitor.shared.trigger.Polling.INTERVAL; TestConfig.routeLiveInterval = il.kavmonitor.shared.trigger.Polling.INTERVAL }
         }
     }
 
@@ -63,7 +63,7 @@ class AppUiTest {
 
     private val app get() = ApplicationProvider.getApplicationContext<TestApp>()
     private val nm get() = app.getSystemService(NotificationManager::class.java)
-    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.3.1/flow_live" else "../docs/screenshots/v0.3.1/flow_replay").apply { mkdirs() }
+    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.4/flow_live" else "../docs/screenshots/v0.4/flow_replay").apply { mkdirs() }
     private val notifLog = StringBuilder()
     private val timeout = if (TestApp.LIVE) 90_000L else 15_000L
 
@@ -113,7 +113,7 @@ class AppUiTest {
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
         waitForText("מעקב חדש")
-        assertTrue(has("v0.3.1-beta"))
+        assertTrue(has("v0.4-beta"))
         shot("01_home_empty")
 
         // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches
@@ -175,7 +175,7 @@ class AppUiTest {
         shot("09_watch_screen_route_view")
         val ongoing = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_STATUS }
         assertTrue(ongoing.flags and Notification.FLAG_ONGOING_EVENT != 0)
-        assertEquals("עצור", ongoing.actions.single().title.toString())
+        assertEquals(listOf("עצור", "+15 דק׳"), ongoing.actions.map { it.title.toString() })
         assertTrue(shadowOf(service.get()).isLastForegroundNotificationAttached)
         assertTrue(service.get().isPolling)
         assertTrue(service.get().isWakeLockHeld)
@@ -193,7 +193,7 @@ class AppUiTest {
         if (!TestApp.LIVE) {
             compose.waitReal(timeout) { shadowOf(nm).allNotifications.any { it.channelId == Notifications.CHANNEL_ALERT } }
             val alert = shadowOf(nm).allNotifications.first { it.channelId == Notifications.CHANNEL_ALERT }
-            assertEquals("קו 194 יצא מת. רכבת תל אביב- סבידור/רציפים A!", alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+            assertEquals("194 יצא מהמוצא", alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", ""))
             scrollTop()
             waitForText("התראות שנשלחו")
             shot("10_watch_after_departure_alert")

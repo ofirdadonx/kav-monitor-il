@@ -29,13 +29,16 @@ import il.kavmonitor.shared.location.NearestStops
 import il.kavmonitor.shared.model.LeavePlan
 import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.trigger.WalkTime
+import il.kavmonitor.shared.walk.NoWalkingRouter
+import il.kavmonitor.shared.walk.WalkPlanner
+import il.kavmonitor.shared.walk.WalkRoute
 import il.kavmonitor.shared.watch.LeavePlanHolder
 import il.kavmonitor.shared.location.NoLocationProvider
 import il.kavmonitor.shared.route.RouteLiveController
 import kotlin.time.Clock
 import kotlin.time.Duration
 
-enum class Screen { HOME, NEW_WATCH, WATCH }
+enum class Screen { HOME, NEW_WATCH, WATCH, MAP }
 
 sealed interface Loadable<out T> {
     data object Idle : Loadable<Nothing>
@@ -51,7 +54,7 @@ class AppController(
     private val launcher: WatchLauncher,
     live: LiveDataSource,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-    clock: Clock = Clock.System,
+    val clock: Clock = Clock.System,
     routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
     /** Full version name shown in the UI, e.g. "0.2-beta". */
     val appVersion: String = "",
@@ -59,6 +62,8 @@ class AppController(
     val location: LocationController = LocationController(NoLocationProvider, settings = null),
     /** Stops curlbus can't answer: shown with an "estimated" badge in the pickers (a watch falls back to neighbours). */
     val brokenStops: il.kavmonitor.shared.data.BrokenStops = il.kavmonitor.shared.data.BrokenStops(null),
+    /** Pedestrian routes to stops (OSRM foot by default; straight-line estimate when it can't answer). */
+    val walkPlanner: WalkPlanner = WalkPlanner(NoWalkingRouter),
 ) {
     /** Loadable.Failed carries an [il.kavmonitor.shared.data.ErrorKind] name; the raw text only goes to the log. */
     private fun friendlyFailure(e: Exception): String {
@@ -75,6 +80,72 @@ class AppController(
 
     /** Live route view (foreground only; see [RouteLiveController]). */
     val routeLive = RouteLiveController(live, scope, clock, routeLiveInterval)
+
+    /**
+     * Full-screen map: its own refresher (same sampled-stops logic and [il.kavmonitor.shared.trigger.Polling.INTERVAL]),
+     * attached only while the map screen is composed; closing the map detaches it, so it stops refreshing.
+     */
+    val mapLive = RouteLiveController(live, scope, clock, routeLiveInterval)
+    var mapRequest by mutableStateOf<il.kavmonitor.shared.route.RouteLiveRequest?>(null); private set
+    var mapTitle by mutableStateOf(""); private set
+    private var mapReturn = Screen.HOME
+
+    /** Opens the map (on tap only) for [request]'s line; Back / "close" returns to the current screen. */
+    fun openMap(request: il.kavmonitor.shared.route.RouteLiveRequest, title: String) {
+        if (screen != Screen.MAP) mapReturn = screen
+        mapRequest = request
+        mapTitle = title
+        screen = Screen.MAP
+    }
+
+    fun closeMap() {
+        if (screen == Screen.MAP) screen = mapReturn
+        mapRequest = null
+    }
+
+    // ---- follow one bus (long-press a bus card → "פעולות לרכב") ----
+    /** Bus whose actions sheet is open (null = closed). */
+    var busActions by mutableStateOf<il.kavmonitor.shared.follow.BusRef?>(null); private set
+    /** The followed bus (null = none). Refreshed by the route view only (no polling of its own). */
+    var followed by mutableStateOf<il.kavmonitor.shared.follow.BusRef?>(null); private set
+    /** Last refresh in which the followed bus was seen (for "disappeared"). */
+    var followLastSeen: kotlin.time.Instant? = null; private set
+
+    fun openBusActions(bus: il.kavmonitor.shared.follow.BusRef) { busActions = bus }
+    fun closeBusActions() { busActions = null }
+
+    fun runBusAction(id: String) {
+        val bus = busActions ?: return
+        when (id) {
+            il.kavmonitor.shared.follow.BusActions.FOLLOW -> { followed = bus; followLastSeen = null }
+            il.kavmonitor.shared.follow.BusActions.UNFOLLOW -> unfollow()
+        }
+        busActions = null
+    }
+
+    fun unfollow() { followed = null; followLastSeen = null }
+
+    /** Followed-bus card data from the route view's latest snapshot; remembers when the bus was last seen. */
+    fun followInfo(
+        snap: il.kavmonitor.shared.route.RouteLiveSnapshot?,
+        stops: List<RouteStop>,
+        preferredStop: RouteStop?,
+        now: kotlin.time.Instant,
+    ): il.kavmonitor.shared.follow.FollowInfo? {
+        val f = followed ?: return null
+        val fix = location.fix
+        val ref = il.kavmonitor.shared.follow.FollowBus.refStop(stops, preferredStop, fix?.lat, fix?.lon)
+        val info = il.kavmonitor.shared.follow.FollowBus.compute(snap, f, stops, ref, fix?.lat, fix?.lon, now, followLastSeen)
+        if (info.bus != null && snap != null && followLastSeen != snap.fetchedAt) followLastSeen = snap.fetchedAt
+        return info
+    }
+
+    /** Stop the route view should be targeted at so curlbus returns the followed bus's ETA there (null = none needed). */
+    fun followTargetStop(lineRef: Int, stops: List<RouteStop>, preferredStop: RouteStop?): RouteStop? {
+        followed?.takeIf { it.lineRef == lineRef } ?: return null
+        val fix = location.fix
+        return il.kavmonitor.shared.follow.FollowBus.refStop(stops, preferredStop, fix?.lat, fix?.lon)
+    }
 
     /** Stop lists per direction (line_ref), prefetched for the visible direction cards (stop counts, real end names). */
     val directionStops = mutableStateMapOf<Int, Loadable<StopList>>()
@@ -110,6 +181,7 @@ class AppController(
     /** Called by the platform when the app goes to the foreground/background (Activity onStart/onStop). */
     fun setAppVisible(visible: Boolean) {
         routeLive.setAppVisible(visible)
+        mapLive.setAppVisible(visible)
         location.setAppVisible(visible)
     }
 
@@ -159,13 +231,14 @@ class AppController(
     }
 
     /** @return true if handled (navigated back inside the app). */
-    fun back(): Boolean = when (screen) {
+    fun back(): Boolean = if (busActions != null) { busActions = null; true } else when (screen) {
         Screen.HOME -> false
         Screen.NEW_WATCH -> {
             if (selectedDirection != null) { selectedDirection = null; stops = Loadable.Idle } else screen = Screen.HOME
             true
         }
         Screen.WATCH -> { screen = Screen.HOME; true }
+        Screen.MAP -> { closeMap(); true }
     }
 
     fun searchLine() {
@@ -200,18 +273,41 @@ class AppController(
         NearestStops.find(list, fix.lat, fix.lon)?.let { targetStopCode = it.stop.code }
     }
 
-    /** Walk time computed from the current location to [stop] (null without a fix or stop coordinates). */
-    fun autoWalk(stop: RouteStop?): Pair<Int, Double>? {
+    /** Bumped when a walking route arrives (observe it to recompose / re-run effects). */
+    var walkVersion by mutableStateOf(0); private set
+    private val walkInflight = mutableSetOf<String>()
+
+    /**
+     * Walk from the current location to [stop]: the routed walk if already known for this ~50 m cell, else the
+     * straight-line estimate (null without a fix or stop coordinates). Never does I/O; see [requestWalk].
+     */
+    fun autoWalk(stop: RouteStop?): WalkRoute? {
+        walkVersion // observe
         val fix = location.fix ?: return null
-        val d = stop?.let { NearestStops.distanceTo(it, fix.lat, fix.lon) } ?: return null
-        return WalkTime.minutes(d) to d
+        if (stop?.lat == null || stop.lon == null) return null
+        return walkPlanner.cached(fix.lat, fix.lon, stop.code) ?: WalkPlanner.straightLine(fix.lat, fix.lon, stop.lat, stop.lon)
+    }
+
+    /**
+     * One walking-route request for the current location → [stop] (on stop selection / watch start / watch screen),
+     * unless cached for this cell, already in flight or failed recently. Times out after 5 s (straight line then).
+     */
+    fun requestWalk(stop: RouteStop?) {
+        val fix = location.fix ?: return
+        if (stop?.lat == null || stop.lon == null) return
+        if (!walkPlanner.shouldRequest(fix.lat, fix.lon, stop.code)) return
+        val key = WalkPlanner.key(fix.lat, fix.lon, stop.code)
+        if (!walkInflight.add(key)) return
+        scope.launch {
+            try { walkPlanner.walk(fix.lat, fix.lon, stop.code, stop.lat, stop.lon) } finally { walkInflight.remove(key); walkVersion++ }
+        }
     }
 
     /** The walk plan the new watch would start with. */
     fun leavePlan(stop: RouteStop?): LeavePlan {
         val buffer = TriggerConfig.LEAVE_BUFFER_MINUTES
         walkOverrideMinutes?.let { return LeavePlan(it, buffer, manual = true) }
-        autoWalk(stop)?.let { (m, d) -> return LeavePlan(m, buffer, manual = false, walkDistanceMeters = d) }
+        autoWalk(stop)?.let { w -> return LeavePlan(w.minutes, buffer, manual = false, walkDistanceMeters = w.distanceMeters, walkRouted = w.routed) }
         return LeavePlan(TriggerConfig.DEFAULT_WALK_MINUTES, buffer, manual = false, walkDistanceMeters = null)
     }
 
@@ -228,8 +324,11 @@ class AppController(
         if (spec.trigger != TriggerType.LEAVE_FOR_STOP) return
         val current = LeavePlanHolder.planFor(spec) ?: return
         if (current.manual) return
-        val (m, d) = autoWalk(spec.stop) ?: return
-        if (m != current.walkMinutes || current.walkDistanceMeters == null) LeavePlanHolder.set(spec, current.copy(walkMinutes = m, walkDistanceMeters = d))
+        requestWalk(spec.stop)
+        val w = autoWalk(spec.stop) ?: return
+        if (w.minutes != current.walkMinutes || current.walkDistanceMeters == null || w.routed != current.walkRouted) {
+            LeavePlanHolder.set(spec, current.copy(walkMinutes = w.minutes, walkDistanceMeters = w.distanceMeters, walkRouted = w.routed))
+        }
     }
 
     fun startNewWatch() {
@@ -254,12 +353,27 @@ class AppController(
     fun startWatch(spec: WatchSpec) {
         recents.add(spec)
         LeavePlanHolder.clear()
+        il.kavmonitor.shared.watch.WatchEdits.clear()
         WatchStateHolder.update(null) // show "starting…" instead of the previous watch until the service reports
         launcher.start(spec)
         screen = Screen.WATCH
     }
 
     fun stopWatch() = launcher.stop()
+
+    /** +15/+30/+60 min on the running watch (no restart; the service refreshes the notification and wake lock). */
+    fun extendWatch(minutes: Int) = launcher.extend(minutes)
+
+    /** Time to leave: change the walk minutes of the running watch (manual from now on; used from the next poll). */
+    fun setWatchWalkMinutes(spec: WatchSpec, minutes: Int) {
+        if (spec.trigger != TriggerType.LEAVE_FOR_STOP) return
+        val current = LeavePlanHolder.planFor(spec) ?: return
+        val m = minutes.coerceIn(0, il.kavmonitor.shared.trigger.TriggerConfig.MAX_WALK_MINUTES)
+        LeavePlanHolder.set(spec, current.copy(walkMinutes = m, walkDistanceMeters = null, manual = true, walkRouted = false))
+        WatchStateHolder.state.value?.takeIf { it.spec.recentKey == spec.recentKey }?.let {
+            WatchStateHolder.update(it.copy(leavePlan = LeavePlanHolder.planFor(spec)))
+        }
+    }
 
     companion object {
         const val PREFETCH_PARALLELISM = 3

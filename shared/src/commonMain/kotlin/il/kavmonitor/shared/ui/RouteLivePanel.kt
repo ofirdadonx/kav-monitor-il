@@ -1,5 +1,6 @@
 package il.kavmonitor.shared.ui
 
+import il.kavmonitor.shared.route.RouteBus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.resources.Res
+import il.kavmonitor.shared.resources.map_open
 import il.kavmonitor.shared.resources.route_live_active
 import il.kavmonitor.shared.resources.route_live_active_one
 import il.kavmonitor.shared.resources.route_live_error
@@ -38,12 +40,21 @@ fun LazyListScope.routeLiveItems(
     keyPrefix: String = "route",
     /** Departures observed elsewhere (the running departs-origin watch), by bus key. */
     observedDepartures: Map<String, Instant> = emptyMap(),
+    /** Opens the full-screen map (shown as a button in the header). */
+    onOpenMap: (() -> Unit)? = null,
+    /** Long-press on a bus card (vehicle actions sheet). */
+    onBusLongPress: ((RouteBus) -> Unit)? = null,
+    followedKey: (RouteBus) -> Boolean = { false },
 ) {
     item(key = "$keyPrefix-header") {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(Res.string.route_live_title), style = MaterialTheme.typography.titleMedium)
                 if (state?.loading == true) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                if (onOpenMap != null) {
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                    androidx.compose.material3.OutlinedButton(onClick = onOpenMap) { Text("🗺 " + stringResource(Res.string.map_open)) }
+                }
             }
             val snap = state?.snapshot
             when {
@@ -73,7 +84,10 @@ fun LazyListScope.routeLiveItems(
     // A snapshot kept from the previous request may have been sampled for another target: no ETA then (never mislabel).
     val etaStop = targetStop?.takeIf { it.code == snap.targetStopCode }
     items(snap.active, key = { "$keyPrefix-bus-" + it.key }) { bus ->
-        BusDetailsCard(bus.toDetails(etaStop, origin?.code, observedDepartures[bus.key]), now)
+        BusDetailsCard(
+            bus.toDetails(etaStop, origin?.code, observedDepartures[bus.key]), now,
+            onLongPress = onBusLongPress?.let { f -> { f(bus) } }, followed = followedKey(bus),
+        )
     }
     if (snap.noGps.isNotEmpty()) {
         item(key = "$keyPrefix-nogps") {

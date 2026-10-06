@@ -61,7 +61,7 @@ class LeaveTimeTest {
         val d = TriggerDetector(spec)
         val lead = 8
         val gone = bus("A", ilTime("16:06:00")) // leave 15:58, 2 min ago → not catchable
-        val edge = bus("B", ilTime("16:07:30")) // leave 15:59:30, 30 s ago → still catchable (grace 1 min) → fires now
+        val edge = bus("B", ilTime("16:07:30")) // leave 15:59:30, 30 s ago → still catchable (grace 90 s) → fires now
         val later = bus("C", ilTime("16:40:00"))
         assertEquals(LeaveStatus.NOT_CATCHABLE, d.leaveInfo(gone, t0, lead).status)
         val ev = d.onSnapshot(t0, listOf(gone, edge, later), leadMinutes = lead).single()

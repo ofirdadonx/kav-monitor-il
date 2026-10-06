@@ -8,6 +8,7 @@ import il.kavmonitor.shared.trigger.TriggerDetector
 import il.kavmonitor.shared.trigger.TriggerEvent
 import il.kavmonitor.shared.trigger.TriggerReason
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.minutes
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -44,13 +45,18 @@ class TriggerReplayTest {
 
     @Test
     fun arrivalAtShlomoLeviByEta() {
-        // Bus 23401702: 10:07:17 live fix (10:06:24) ~600 m away, ETA 10:08 → fires "arriving".
-        val r = replay(STOP_36926, TriggerType.ARRIVES_AT_STOP, listOf("36926_100640", "36926_100717", "36926_100754"))
-        assertTrue(r[0].second.isEmpty())
-        val ev = r[1].second.single()
+        // Bus 23401702: 10:06:40 ETA 10:08 (1 min 20 s), 10:07:17 live fix (10:06:24) ~600 m away, ETA 10:08.
+        // v0.4 (60 s polls, "arriving" = ETA ≤ 2 min): fires at 10:06:40, once per trip.
+        val polls = listOf("36926_100640", "36926_100717", "36926_100754")
+        val r = replay(STOP_36926, TriggerType.ARRIVES_AT_STOP, polls)
+        val ev = r[0].second.single()
         assertEquals(TriggerReason.AT_STOP_ETA, ev.reason)
         assertEquals("23401702", ev.vehicleRef)
-        assertTrue(r[2].second.isEmpty(), "fires once per trip")
+        assertTrue(r[1].second.isEmpty() && r[2].second.isEmpty(), "fires once per trip")
+        // v0.3 thresholds (35 s polls, ETA ≤ 1 min): fired one poll later, at 10:07:17
+        val v03 = replay(STOP_36926, TriggerType.ARRIVES_AT_STOP, polls, TriggerConfig(arriveEtaThreshold = 1.minutes, arriveEtaMaxDistanceMeters = 1000.0))
+        assertTrue(v03[0].second.isEmpty())
+        assertEquals("23401702", v03[1].second.single().vehicleRef)
     }
 
     @Test
@@ -73,12 +79,16 @@ class TriggerReplayTest {
     @Test
     fun arrivalAtAzrieliInHeavyTraffic() {
         // Bus 18379504 crawled out of Savidor: 10:09:08 fix ~840 m away (ETA 10:11), 10:09:45 fix ~650 m (ETA 10:11),
-        // 10:10:27 same fix, ETA now 33 s away → "arriving"; 10:11:03 dropped off the Azrieli list (arrived).
+        // 10:10:27 same fix, ETA now 33 s away; 10:11:03 dropped off the Azrieli list (arrived).
+        // v0.4 (60 s polls → "arriving" = ETA ≤ 2 min and ≤ 1500 m): fires at 10:09:08, ~2 min (two 60 s polls) ahead.
         val polls = listOf("21472_100908", "21472_100945", "21472_101027", "21472_101103")
         val r = replay(STOP_21472, TriggerType.ARRIVES_AT_STOP, polls)
-        assertEquals(listOf(0, 0, 1, 0), r.map { it.second.size })
-        assertEquals(TriggerReason.AT_STOP_ETA, r[2].second.single().reason)
-        assertEquals("18379504", r[2].second.single().vehicleRef)
+        assertEquals(listOf(1, 0, 0, 0), r.map { it.second.size })
+        assertEquals(TriggerReason.AT_STOP_ETA, r[0].second.single().reason)
+        assertEquals("18379504", r[0].second.single().vehicleRef)
+        // with the v0.3 thresholds (35 s polls) it fired at 10:10:27
+        val v03 = TriggerConfig(arriveEtaThreshold = 1.minutes, arriveEtaMaxDistanceMeters = 1000.0)
+        assertEquals(listOf(0, 0, 1, 0), replay(STOP_21472, TriggerType.ARRIVES_AT_STOP, polls, v03).map { it.second.size })
 
         val noEta = replay(STOP_21472, TriggerType.ARRIVES_AT_STOP, polls, TriggerConfig(arriveEtaThreshold = kotlin.time.Duration.ZERO))
         assertEquals(TriggerReason.DROPPED_AT_STOP, noEta[3].second.single().reason)

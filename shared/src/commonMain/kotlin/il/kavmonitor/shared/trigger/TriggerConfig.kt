@@ -4,10 +4,18 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * The one poll period of the app (v0.4: 60 s): the watch service, the live route view and the map refresh all use it.
+ * The thresholds below are sized for it (a bus can move ~500-1000 m between two polls).
+ */
+object Polling {
+    val INTERVAL: Duration = 60.seconds
+}
+
 /** All tunables of the watch/trigger logic in one place. See README "Trigger logic" for the evidence. */
 data class TriggerConfig(
-    /** Poll period: one curlbus call per poll. */
-    val pollInterval: Duration = 35.seconds,
+    /** Poll period: one curlbus call per poll ([Polling.INTERVAL]). */
+    val pollInterval: Duration = Polling.INTERVAL,
     /** Retry delay after an HTTP 5xx from the watched stop (to confirm it's broken and switch to stand-in stops quickly). */
     val serverErrorRetry: Duration = 5.seconds,
     /** A GPS fix older than this is not used for any decision. */
@@ -26,20 +34,20 @@ data class TriggerConfig(
     /** Fresh GPS within this radius of the chosen stop → "at the stop". */
     val arriveRadiusMeters: Double = 150.0,
     /** Live (GPS-tracked) bus whose ETA to the stop is at most this → "arriving". */
-    val arriveEtaThreshold: Duration = 1.minutes,
+    val arriveEtaThreshold: Duration = 2.minutes, // 1 min with 35 s polls; 60 s polls need one poll of headroom
     /**
      * ...but only if the bus is not obviously far away: SIRI ETAs are minute-granular and sometimes slide
      * (seen live: Azrieli ETA 10:09→10:10→10:11 while the bus crawled ~900 m away).
      */
-    val arriveEtaMaxDistanceMeters: Double = 1000.0,
+    val arriveEtaMaxDistanceMeters: Double = 1500.0, // 1000 m with 35 s polls (2 min at city speed ≈ 1-1.5 km)
     /** Bus dropped off the stop's list while its last ETA was within this window → it reached/passed the stop. */
-    val passedEtaWindow: Duration = 3.minutes,
+    val passedEtaWindow: Duration = 4.minutes, // 3 min with 35 s polls: the last ETA can now be up to 60 s staler
 
     // ---- time to leave ----
     /** A bus whose leave time is more than this in the past can no longer be caught (shown as such, never alerted). */
-    val leaveGrace: Duration = 1.minutes,
+    val leaveGrace: Duration = 90.seconds, // 1 min with 35 s polls: a leave time can now fall up to 60 s before the poll that sees it
     /** After a "leave now" alert, another bus is alerted only if at least this much later (no back-to-back spam). */
-    val leaveMinAlertGap: Duration = 3.minutes,
+    val leaveMinAlertGap: Duration = 3.minutes, // = 3 polls at 60 s (unchanged)
 ) {
     companion object {
         val Default = TriggerConfig()
