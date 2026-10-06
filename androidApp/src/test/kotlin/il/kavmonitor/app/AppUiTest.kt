@@ -113,7 +113,7 @@ class AppUiTest {
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
         waitForText("מעקב חדש")
-        assertTrue(has("v0.5-beta"))
+        assertTrue(has("v0.6-beta"))
         shot("01_home_empty")
 
         // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches
@@ -147,7 +147,8 @@ class AppUiTest {
         click("שלמה לוי/שער יפו")
         compose.waitReal(timeout) { app.graph.controller.routeLive.state?.snapshot?.targetStopCode == "36926" }
         val anyEta = app.graph.controller.routeLive.state!!.snapshot!!.active.any { it.etaAtTarget != null }
-        if (anyEta) scrollTo("הגעה ל\u2068שלמה לוי/שער יפו") else scrollTo("על הקו עכשיו")
+        // v0.6: compact rows with the minutes to the chosen stop under "אוטובוסים בדרך ל…"
+        if (anyEta) scrollTo("אוטובוסים בדרך ל\u2068שלמה לוי/שער יפו") else scrollTo("על הקו עכשיו")
         if (!TestApp.LIVE) assertTrue(anyEta)
         shot("06_route_live_eta_to_chosen_stop")
 
@@ -167,7 +168,11 @@ class AppUiTest {
         // (the route-view cards also say "עדכון אחרון:", so wait on the watch state itself)
         compose.waitReal(timeout) { WatchStateHolder.state.value?.lastSuccessAt != null }
         compose.waitReal(timeout) { !has("ממתין לעדכון ראשון") }
-        if (!TestApp.LIVE) waitForText("רכב 7628169")
+        // v0.6: the hero counts down to the next departure; 7628169 is one of the watched buses (row / diagram)
+        if (!TestApp.LIVE) {
+            compose.waitReal(timeout) { WatchStateHolder.state.value?.buses?.any { it.vehicleRef == "7628169" } == true }
+            compose.waitReal(timeout) { has("האוטובוס יוצא בעוד") || has("האוטובוס יצא") }
+        }
         shot("08_watch_screen")
         scrollTo("על הקו עכשיו")
         compose.waitReal(timeout) { has("נתונים מ-") }
@@ -194,7 +199,10 @@ class AppUiTest {
             compose.waitReal(timeout) { shadowOf(nm).allNotifications.any { it.channelId == Notifications.CHANNEL_ALERT } }
             val alert = shadowOf(nm).allNotifications.first { it.channelId == Notifications.CHANNEL_ALERT }
             assertEquals("194 יצא מהמוצא", alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", ""))
+            // v0.6: red hero "האוטובוס יצא"; the alerts list is below the line diagram and the rows
             scrollTop()
+            waitForText("האוטובוס יצא")
+            scrollTo("התראות שנשלחו")
             waitForText("התראות שנשלחו")
             shot("10_watch_after_departure_alert")
             dumpNotifications("after departure alert")

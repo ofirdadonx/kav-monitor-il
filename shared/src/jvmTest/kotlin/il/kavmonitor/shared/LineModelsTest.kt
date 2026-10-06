@@ -228,6 +228,11 @@ class LineModelsTest {
         assertTrue(extra.etaEstimated)
         assertEquals(extra.eta!! - 7.minutes, extra.leaveAt)
         assertEquals(rows.sortedWith(compareBy(nullsLast()) { it.eta }), rows)
+        // the leave hero follows the watch's own (alerting) buses only, never a schedule estimate
+        val missed = state(leaveSpec, v.copy(leaveAt = now - 5.minutes, leaveStatus = LeaveStatus.NOT_CATCHABLE))
+        val r2 = WatchRows.build(missed, stops, snap, emptyMap(), now)
+        assertTrue(r2.any { it.key == ns.key && it.leaveStatus == LeaveStatus.WAIT }, r2.joinToString("\n"))
+        assertEquals(HeroTone.NONE, LineModels.hero(missed, r2, now).tone)
         // a finished watch shows only its own last buses
         assertEquals(listOf(far.key), WatchRows.build(s.copy(phase = WatchPhase.STOPPED), stops, snap, emptyMap(), now).map { it.key })
     }

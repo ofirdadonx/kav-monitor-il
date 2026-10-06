@@ -4,8 +4,8 @@ Personal Android app: pick an Israeli bus line + direction, and get a loud notif
 **leaves its origin stop**, **reaches a stop you choose**, or when it's **time to leave** to catch it at your stop. Each watch is started on demand and runs for a limited
 time (default 60 min). The last 5 watch configurations are kept as one-tap "recents".
 
-Status: **v0.5** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone, and the user was happy with
-v0.4-beta. v0.3 through v0.5 were built and verified on Linux only: unit tests, Robolectric/Roborazzi UI tests and live
+Status: **v0.6** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone, and the user was happy with
+v0.4-beta. v0.3 through v0.6 were built and verified on Linux only: unit tests, Robolectric/Roborazzi UI tests and live
 API runs. None of them has run on a device or emulator, so these are untested on a real phone:
 * real GPS fixes;
 * the real permission dialog;
@@ -20,6 +20,40 @@ Raw evidence:
   * v0.3 Stride geo probe and "time to leave" live run;
   * v0.4 walking-route measurements and the live broken-stop fallback run at 25141;
   * v0.5 multi-stop measurements (`multistop-2026-10-06.md`).
+
+### What's new in v0.6 (new watch screen)
+
+The watch screen was redesigned from the approved mockup (`docs/screenshots/mockup-v0.6/`). Real screens, light and
+dark, are in `docs/screenshots/v0.6/`.
+
+* **Hero card** at the top, in big colour-coded text, driven by the live data:
+  * **time to leave**: "צא בעוד N דק׳" in green (more than 3 min), orange (3 min or less), red "צא עכשיו", or gray
+    "אין אוטובוס שאפשר להספיק" (with the next bus and why). It follows only the buses the watch itself tracks and
+    alerts on, never a schedule estimate;
+  * **departs origin**: "האוטובוס יוצא בעוד N דק׳", "יוצא עכשיו", or red "האוטובוס יצא" for 2 min after the
+    departure alert;
+  * **arrives at stop**: "מגיע לתחנה בעוד N דק׳", "מגיע עכשיו", or "הגיע לתחנה" for 2 min after the alert;
+  * a stopped or finished watch, or no data yet, shows gray.
+  * The hero is computed from the last poll plus the local clock. Between polls it counts down every second without
+    making any request (`WatchCountdownUiTest`). Minutes are rounded up, the same as in the notification.
+* **Line diagram** built from the full-route data:
+  * every stop, with quiet runs of 2 or more stops collapsed into "… N תחנות";
+  * origin, destination, your stop (highlighted) and the stops next to buses are always shown;
+  * stops curlbus does not answer for are marked "לא מדווחת ב-curlbus";
+  * buses are drawn at a stop (within 80 m) or between stops, each with a freshness dot and minutes to your stop
+    ("~N" when estimated). Trips that have not started wait at the origin;
+  * tap a bus to expand its row and scroll to it; long-press opens the vehicle actions (follow bus).
+* **Compact bus rows** replace the long cards:
+  * each row shows big minutes to your stop, a one-line status (leave time / not catchable / alert sent, or where
+    the bus is), a thin progress bar and a freshness dot (green = GPS up to 2 min old, orange = up to 5 min, gray =
+    schedule only);
+  * tap a row to expand the full details (the old card's lines);
+  * the followed bus is pinned first and marked "📍 במעקב".
+  * Rows merge the watched stop's own list (authoritative ETA and leave time) with the full-route snapshot (position,
+    next stop, GPS age), and add the buses the stop doesn't list yet with an estimated ETA, marked "(הערכה)".
+* **Compact header**: line, origin → destination. A small card below the hero holds the trigger, walk time, status,
+  fallback note and errors. +15/+30/+60, walk −/+, the map, Stop, follow card, alerts and the nearest stop are kept.
+* The new-watch **route view** uses the same diagram and rows, with minutes to the chosen stop.
 
 ### What's new in v0.5
 

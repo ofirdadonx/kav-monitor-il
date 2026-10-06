@@ -332,7 +332,7 @@ fun CompactBusRow(
                         progress = { (b.fraction ?: 0.0).toFloat().coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth().height(3.dp),
                         color = if (fresh == Freshness.SCHEDULED) muted else MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                         drawStopIndicator = {},
                     )
                 }

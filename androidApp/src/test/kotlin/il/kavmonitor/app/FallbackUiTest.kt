@@ -159,6 +159,10 @@ class FallbackUiTest {
         assertEquals("20750", st.fallback!!.upstream?.code)
         assertTrue(app.graph.brokenStops.isBroken("25141"))
         waitFor("התחנה לא מדווחת ב-curlbus")
+        // v0.6: estimated rows say "(הערכה)" collapsed; tapping one expands the details ("משוער לפי תחנה סמוכה")
+        val estRow = hasText("דק׳ (הערכה)", substring = true) and hasClickAction()
+        compose.waitReal(timeout) { runCatching { compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(estRow) }.isSuccess }
+        compose.onAllNodes(estRow).onFirst().performClick()
         waitFor("משוער לפי תחנה סמוכה")
         scrollTop()
         shot("03_fallback_watch_screen")

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
@@ -167,7 +168,9 @@ class WalkMapEditUiTest {
         val st0 = WatchStateHolder.state.value!!
         assertEquals(35, st0.leavePlan!!.walkMinutes)
         assertTrue(st0.leavePlan!!.walkRouted)
-        waitFor("מוצא"); waitFor("יעד"); waitFor("זמן לצאת ל")
+        // v0.6: origin → destination in the compact header, the trigger in the info card under the hero
+        waitFor("סבידור/רציפים A\u2069 ← \u2068ת. רכבת הראשונים, ראשון לציון"); waitFor("זמן לצאת ל")
+        compose.waitReal(timeout) { compose.onAllNodes(hasTestTag("hero-PLENTY") or hasTestTag("hero-GET_READY") or hasTestTag("hero-NOW") or hasTestTag("hero-NONE")).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(has("לפי מסלול הליכה, 2.6 ק״מ"))
         shot("04_watch_card_rows_leave")
         val n0 = status()

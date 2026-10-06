@@ -10,6 +10,7 @@ import android.location.LocationManager
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
@@ -171,7 +172,8 @@ class NearestLeaveUiTest {
         waitFor("20 דק׳ הליכה")
         assertTrue(has("ההתראה תגיע 21 דק׳ לפני"))
         shot("04_leave_walk_time_from_location")
-        // manual override and back
+        // manual override and back (v0.6: the route view above is taller, bring the −/+ row on screen first)
+        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("+", substring = false) and androidx.compose.ui.test.hasClickAction())
         click("+", sub = false)
         waitFor("21 דק׳ הליכה (הוגדר ידנית)")
         shot("05_leave_walk_time_manual")
@@ -192,8 +194,14 @@ class NearestLeaveUiTest {
         assertEquals(LeaveStatus.NOT_CATCHABLE, st.buses.single { it.vehicleRef == "23373402" }.leaveStatus)
         assertEquals(LeaveStatus.WAIT, st.buses.single { it.vehicleRef == "7692269" }.leaveStatus)
         assertTrue(TestHttp.snapshot().filter { it.host == "curlbus.test" }.all { it.path == "/36926" })
+        // v0.6: the hero shows the leave countdown; the rows below the line diagram say it per bus
+        compose.waitReal(timeout) { compose.onAllNodes(hasTestTag("hero-PLENTY")).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(has("צא בעוד"))
+        scrollTo("לא ניתן להספיק")
         waitFor("לא ניתן להספיק")
+        scrollTo("צאו ב-")
         waitFor("צאו ב-")
+        scrollTop()
         val ongoing = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_STATUS }
         note("ongoing: ${ongoing.extras.getCharSequence(Notification.EXTRA_TITLE)} | ${ongoing.extras.getCharSequence(Notification.EXTRA_TEXT)} | chronometer=${ongoing.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER)} countdown=${ongoing.extras.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN)}")
         val ongoingText = ongoing.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
@@ -217,6 +225,8 @@ class NearestLeaveUiTest {
         assertEquals(26, ev.leadMinutes)
         assertTrue(ev.live)
         compose.waitReal(timeout) { WatchStateHolder.state.value!!.buses.any { it.leaveStatus == LeaveStatus.ALERTED } }
+        compose.waitReal(timeout) { compose.onAllNodes(hasTestTag("hero-NOW")).fetchSemanticsNodes().isNotEmpty() }
+        scrollTo("נשלחה התראה לצאת")
         waitFor("נשלחה התראה לצאת")
         shot("07_leave_alert_sent")
         // more polls: no second alert for the same bus

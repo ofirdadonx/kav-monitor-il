@@ -98,7 +98,10 @@ object LineModels {
     private fun leaveHero(spec: WatchSpec, state: WatchState, rows: List<BusDetails>, now: Instant, line: String, est: String): HeroModel {
         val grace = TriggerConfig().leaveGrace
         val s = stop(spec.stop.name)
-        val candidates = rows.filter { d ->
+        // only buses the watch itself tracks (the alert engine's leave times): never "leave now" for a schedule estimate
+        val tracked = state.buses.map { it.key }.toSet()
+        val own = rows.filter { it.key in tracked }
+        val candidates = own.filter { d ->
             val at = d.leaveAt
             d.eta != null && at != null && at >= now - grace &&
                 (d.leaveStatus == LeaveStatus.WAIT || d.leaveStatus == LeaveStatus.LEAVE_NOW || d.leaveStatus == LeaveStatus.ALERTED)
@@ -106,7 +109,7 @@ object LineModels {
         val b = candidates.minByOrNull { it.eta!! }
         if (b == null) {
             val walk = (state.leavePlan ?: spec.leave)?.walkMinutes
-            val next = rows.filter { it.eta != null && it.eta >= now }.minByOrNull { it.eta!! }
+            val next = own.filter { it.eta != null && it.eta >= now }.minByOrNull { it.eta!! }
             val sub = if (next == null) "$line · $s · אין כרגע אוטובוס בדרך לתחנה"
             else "$line · $s · הבא ב-${next.eta!!.israelClock()} — לא תספיק" + (walk?.let { " ($it דק׳ הליכה)" } ?: "")
             return HeroModel(HeroTone.NONE, null, "אין אוטובוס שאפשר להספיק", sub)
