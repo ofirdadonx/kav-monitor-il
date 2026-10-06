@@ -16,6 +16,7 @@
     <string name="line_with_operator">קו %1$s · %2$s</string>
     <string name="trigger_departs_short">יציאה מ%1$s</string>
     <string name="trigger_arrives_short">הגעה ל%1$s</string>
+    <string name="trigger_leave_short">זמן לצאת ל%1$s · הליכה %2$d דק׳</string>
     <string name="duration_minutes">%1$d דק׳</string>
 
     <!-- New watch -->
@@ -29,6 +30,20 @@
     <string name="trigger_title">מתי להתריע?</string>
     <string name="trigger_departs_origin">כשהאוטובוס יוצא מתחנת המוצא</string>
     <string name="trigger_arrives_at_stop">כשהאוטובוס מגיע לתחנה שאבחר</string>
+    <string name="trigger_leave">זמן לצאת: כשצריך לצאת ברגל לתחנה כדי להספיק</string>
+    <string name="choose_boarding_stop">בחרו תחנת עלייה</string>
+    <string name="walk_title">זמן הליכה לתחנה</string>
+    <string name="walk_auto">%1$d דק׳ הליכה: %2$s בקו אווירי × %3$s ÷ %4$d מ׳ לדקה</string>
+    <string name="walk_manual">%1$d דק׳ הליכה (הוגדר ידנית)</string>
+    <string name="walk_default">אין מיקום: %1$d דק׳ הליכה (ברירת מחדל, אפשר לשנות)</string>
+    <string name="walk_reset">חישוב לפי מיקום</string>
+    <string name="walk_summary">+ מרווח %1$d דק׳ → ההתראה תגיע %2$d דק׳ לפני שהאוטובוס מגיע לתחנה</string>
+    <string name="walk_minutes">%1$d דק׳</string>
+    <string name="walk_need_stop">בחרו תחנת עלייה כדי לחשב את זמן ההליכה</string>
+    <string name="walk_in_use">זמן הליכה בשימוש: %1$d דק׳ + מרווח %2$d דק׳ (%3$s)</string>
+    <string name="walk_in_use_auto">לפי מיקום, %1$s בקו אווירי</string>
+    <string name="walk_in_use_manual">ידני</string>
+    <string name="walk_in_use_default">ברירת מחדל</string>
     <string name="choose_stop">בחרו תחנה</string>
     <string name="stop_item">%1$d. %2$s</string>
     <string name="stop_code">תחנה %1$s</string>
@@ -99,6 +114,7 @@
     <string name="reason_at_stop_gps">ליד התחנה (GPS)</string>
     <string name="reason_at_stop_eta">מגיע בעוד פחות מדקה</string>
     <string name="reason_dropped_at_stop">הגיע לתחנה</string>
+    <string name="reason_leave_now">זמן לצאת לתחנה</string>
     <string name="new_watch_again">מעקב חדש</string>
     <!-- Live route view -->
     <string name="route_live_title">על הקו עכשיו</string>
@@ -115,4 +131,31 @@
     <string name="route_live_need_stops">טוען את מסלול הקו…</string>
     <string name="app_version">גרסה %1$s</string>
     <string name="restart_watch">התחל שוב</string>
+    <string name="dist_m">%1$s מ׳</string>
+    <string name="dist_km">%1$s ק״מ</string>
+    <string name="nearest_title">התחנה הקרובה אליך במסלול</string>
+    <string name="nearest_rationale">כדי להראות את התחנה הקרובה אליך נבקש גישה למיקום. המיקום משמש רק כשהמסך פתוח ולא נשמר.</string>
+    <string name="nearest_denied">אין גישה למיקום</string>
+    <string name="nearest_enable">הפעלת מיקום</string>
+    <string name="nearest_services_off">שירותי המיקום כבויים בטלפון</string>
+    <string name="nearest_locating">מאתר מיקום…</string>
+    <string name="nearest_no_coords">אין מיקומי תחנות לקו הזה</string>
+    <string name="nearest_distance">%1$s ממך בקו אווירי</string>
+    <string name="nearest_accuracy">דיוק המיקום: ±%1$s</string>
+    <string name="nearest_fix_age">המיקום עודכן לפני %1$s</string>
+    <string name="nearest_to_watched">עד %1$s: %2$s בקו אווירי</string>
+    <string name="nearest_use_arrive">התראה כשהאוטובוס מגיע לתחנה הזו</string>
+    <string name="nearest_use_depart">התראה כשהאוטובוס יוצא מהתחנה הזו</string>
+    <string name="nearest_selected">✓ נבחרה כתחנת ההתראה</string>
+    <string name="nearest_is_watched">זו התחנה שבמעקב</string>
+    <string name="bus_departed_late">יצא בפועל ~%1$s (+%2$d דק׳ מהמתוכנן)</string>
+    <string name="bus_departed_early">יצא בפועל ~%1$s (%2$d דק׳ לפני המתוכנן)</string>
+    <string name="bus_departed_on_time">יצא בפועל ~%1$s (בזמן)</string>
+    <string name="leave_at">צאו ב-%1$s (בעוד %2$d דק׳)</string>
+    <string name="leave_now">צאו עכשיו!</string>
+    <string name="leave_alerted">נשלחה התראה לצאת (%1$s)</string>
+    <string name="leave_not_catchable">לא ניתן להספיק (היה צריך לצאת ב-%1$s)</string>
+    <string name="leave_no_eta">אין זמן הגעה משוער לתחנה</string>
+    <string name="eta_live">חי (GPS)</string>
+    <string name="eta_scheduled">לפי לוח הזמנים</string>
 </resources>

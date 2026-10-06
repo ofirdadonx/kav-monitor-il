@@ -1,0 +1,131 @@
+# Live "time to leave" run, 2026-10-06 16:25:36–17:31:09 (IDT), stopped manually (no end summary printed)
+# ./gradlew :shared:leaveLiveSmoke -PstopCode=36926 -PwalkMinutes=6 -Pminutes=80  (walk 6 + buffer 1 = lead 7 min)
+# Stop 36926 Shlomo Levi/Sha'ar Yafo (#13 on Egged 194, line_ref 37121). curlbus polled every ~35 s; raw polls trimmed
+# into shared/src/jvmTest/resources/fixtures/leave_36926 and replayed by LeaveReplayTest (identical alerts).
+#
+# "Arrival" below = the poll in which the bus dropped off the stop's list (SIRI removes a visit at/near the stop);
+# its last GPS fixes were ~650 m out, with GPS lagging 10-60 s, so the arrival is known only to within ~35-60 s.
+#
+# bus       first seen        alert (now >= leaveAt)  ETA at alert  ETA later  last listed  dropped   walker at stop  wait at stop
+# 7695769   16:25:36 ETA16:31 none: leaveAt 16:24 was already 1.5 min past at first sight -> NOT_CATCHABLE
+# 23401502  16:25:36 ETA16:54 16:51:00                16:58         17:00      16:59:52     17:00:28  16:57:00        ~3-3.5 min
+# 23459302  16:46:17 ETA17:16 17:23:28                17:30         17:31      17:30:33     17:31:09  17:29:28        ~1-1.7 min
+# 23401902  17:09:18 ETA17:39 (run stopped before its leave time, 17:43)
+#
+# Both alerts came before the bus; both ETAs slid 2 min later after the alert (traffic), so the walker waited longer
+# than the 1 min buffer. No duplicate alerts when the ETA moved.
+== LEAVE_FOR_STOP @ 13. 36926 שלמה לוי/שער יפו: walk 6 + buffer 1 = lead 7 min, 80 min ==
+[16:25:36] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 848m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:54 LIVE 12140m leave=16:47 WAIT
+[16:26:12] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 777m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:54 LIVE 12140m leave=16:47 WAIT
+[16:26:47] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 751m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:54 LIVE 11995m leave=16:47 WAIT
+[16:27:23] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 713m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 11712m leave=16:48 WAIT
+[16:27:58] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 695m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 11603m leave=16:48 WAIT
+[16:28:33] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 669m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 11400m leave=16:48 WAIT
+[16:29:09] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 669m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 10902m leave=16:48 WAIT
+[16:29:44] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 655m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 10291m leave=16:48 WAIT
+[16:30:20] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 635m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 9572m leave=16:48 WAIT
+[16:30:56] 2 visits err=null | 7695769 sched=15:32 eta=16:31 LIVE 635m leave=16:24 NOT_CATCHABLE | 23401502 sched=15:58 eta=16:55 LIVE 8835m leave=16:48 WAIT
+[16:31:31] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 8174m leave=16:48 WAIT
+[16:32:06] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 7160m leave=16:48 WAIT
+[16:32:42] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 6548m leave=16:48 WAIT
+[16:33:17] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 6419m leave=16:48 WAIT
+[16:33:53] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 6298m leave=16:48 WAIT
+[16:34:28] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 6259m leave=16:48 WAIT
+[16:35:04] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 6107m leave=16:48 WAIT
+[16:35:39] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 5971m leave=16:48 WAIT
+[16:36:14] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 5828m leave=16:48 WAIT
+[16:36:50] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 5394m leave=16:48 WAIT
+[16:37:25] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 5349m leave=16:48 WAIT
+[16:38:01] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4867m leave=16:48 WAIT
+[16:38:36] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4791m leave=16:48 WAIT
+[16:39:11] 1 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 4779m leave=16:49 WAIT
+[16:39:47] 1 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 4568m leave=16:49 WAIT
+[16:40:23] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4568m leave=16:48 WAIT
+[16:40:58] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4291m leave=16:48 WAIT
+[16:41:33] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4236m leave=16:48 WAIT
+[16:42:09] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 4236m leave=16:48 WAIT
+[16:42:44] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 3589m leave=16:48 WAIT
+[16:43:20] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 2925m leave=16:48 WAIT
+[16:43:55] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 2270m leave=16:48 WAIT
+[16:44:30] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 2236m leave=16:48 WAIT
+[16:45:06] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 2131m leave=16:48 WAIT
+[16:45:41] 1 visits err=null | 23401502 sched=15:58 eta=16:55 LIVE 2131m leave=16:48 WAIT
+[16:46:17] 2 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 2003m leave=16:49 WAIT | 23459302 sched=16:32 eta=17:16 LIVE 12372m leave=17:09 WAIT
+[16:46:52] 2 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 1997m leave=16:49 WAIT | 23459302 sched=16:32 eta=17:16 LIVE 12360m leave=17:09 WAIT
+[16:47:27] 2 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 1904m leave=16:49 WAIT | 23459302 sched=16:32 eta=17:16 LIVE 12360m leave=17:09 WAIT
+[16:48:03] 2 visits err=null | 23401502 sched=15:58 eta=16:56 LIVE 1904m leave=16:49 WAIT | 23459302 sched=16:32 eta=17:16 LIVE 12360m leave=17:09 WAIT
+[16:48:38] 2 visits err=null | 23401502 sched=15:58 eta=16:57 LIVE 1800m leave=16:50 WAIT | 23459302 sched=16:32 eta=17:17 LIVE 12332m leave=17:10 WAIT
+[16:49:14] 2 visits err=null | 23401502 sched=15:58 eta=16:58 LIVE 1675m leave=16:51 WAIT | 23459302 sched=16:32 eta=17:18 LIVE 12332m leave=17:11 WAIT
+[16:49:49] 2 visits err=null | 23401502 sched=15:58 eta=16:58 LIVE 1576m leave=16:51 WAIT | 23459302 sched=16:32 eta=17:18 LIVE 12310m leave=17:11 WAIT
+[16:50:25] 2 visits err=null | 23401502 sched=15:58 eta=16:58 LIVE 1528m leave=16:51 WAIT | 23459302 sched=16:32 eta=17:19 LIVE 12310m leave=17:12 WAIT
+[16:51:00] 2 visits err=null | 23401502 sched=15:58 eta=16:58 LIVE 1481m leave=16:51 ALERTED | 23459302 sched=16:32 eta=17:19 LIVE 12301m leave=17:12 WAIT
+>>> LEAVE NOW veh=23401502 trip=585301553_061026 eta=16:58 live=true at=16:51:00
+[16:51:36] 2 visits err=null | 23401502 sched=15:58 eta=16:59 LIVE 1292m leave=16:52 ALERTED | 23459302 sched=16:32 eta=17:20 LIVE 12253m leave=17:13 WAIT
+[16:52:11] 2 visits err=null | 23401502 sched=15:58 eta=16:59 LIVE 1243m leave=16:52 ALERTED | 23459302 sched=16:32 eta=17:20 LIVE 12239m leave=17:13 WAIT
+[16:52:47] 2 visits err=null | 23401502 sched=15:58 eta=16:59 LIVE 1063m leave=16:52 ALERTED | 23459302 sched=16:32 eta=17:20 LIVE 12192m leave=17:13 WAIT
+[16:53:22] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 978m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:23 LIVE 12192m leave=17:16 WAIT
+[16:53:58] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 898m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:23 LIVE 12165m leave=17:16 WAIT
+[16:54:34] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 789m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:21 LIVE 12137m leave=17:14 WAIT
+[16:55:09] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 789m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:21 LIVE 12137m leave=17:14 WAIT
+[16:55:44] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 756m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:21 LIVE 12137m leave=17:14 WAIT
+[16:56:20] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 700m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:21 LIVE 12124m leave=17:14 WAIT
+[16:56:55] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 683m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:21 LIVE 12077m leave=17:14 WAIT
+[16:57:30] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 683m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:23 LIVE 12013m leave=17:16 WAIT
+[16:58:06] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 663m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:24 LIVE 11779m leave=17:17 WAIT
+[16:58:41] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 663m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:24 LIVE 11584m leave=17:17 WAIT
+[16:59:17] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 652m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:24 LIVE 11572m leave=17:17 WAIT
+[16:59:52] 2 visits err=null | 23401502 sched=15:58 eta=17:00 LIVE 643m leave=16:53 ALERTED | 23459302 sched=16:32 eta=17:24 LIVE 11572m leave=17:17 WAIT
+[17:00:28] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 11572m leave=17:18 WAIT
+[17:01:03] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 11154m leave=17:18 WAIT
+[17:01:38] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 10797m leave=17:18 WAIT
+[17:02:14] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 9907m leave=17:18 WAIT
+[17:02:49] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 9613m leave=17:18 WAIT
+[17:03:24] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 8526m leave=17:19 WAIT
+[17:04:00] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 8438m leave=17:19 WAIT
+[17:04:35] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 7663m leave=17:19 WAIT
+[17:05:11] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 7152m leave=17:19 WAIT
+[17:05:46] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 6739m leave=17:19 WAIT
+[17:06:22] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 6167m leave=17:18 WAIT
+[17:06:57] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 5883m leave=17:18 WAIT
+[17:07:32] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 5814m leave=17:18 WAIT
+[17:08:08] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 5814m leave=17:18 WAIT
+[17:08:43] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 5669m leave=17:18 WAIT
+[17:09:18] 2 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4869m leave=17:18 WAIT | 23401902 sched=16:58 eta=17:39 LIVE 12395m leave=17:32 WAIT
+[17:09:54] 2 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4805m leave=17:18 WAIT | 23401902 sched=16:58 eta=17:39 LIVE 12324m leave=17:32 WAIT
+[17:10:29] 2 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 4775m leave=17:19 WAIT | 23401902 sched=16:58 eta=17:40 LIVE 12324m leave=17:33 WAIT
+[17:11:04] 2 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4566m leave=17:18 WAIT | 23401902 sched=16:58 eta=17:40 LIVE 12306m leave=17:33 WAIT
+[17:11:40] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4423m leave=17:18 WAIT
+[17:12:15] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4423m leave=17:18 WAIT
+[17:12:51] 1 visits err=null | 23459302 sched=16:32 eta=17:25 LIVE 4423m leave=17:18 WAIT
+[17:13:26] 1 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 4267m leave=17:19 WAIT
+[17:14:01] 2 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 3768m leave=17:19 WAIT | 23401902 sched=16:58 eta=17:44 LIVE 12267m leave=17:37 WAIT
+[17:14:37] 2 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 3180m leave=17:19 WAIT | 23401902 sched=16:58 eta=17:44 LIVE 12265m leave=17:37 WAIT
+[17:15:12] 2 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 3090m leave=17:19 WAIT | 23401902 sched=16:58 eta=17:45 LIVE 12258m leave=17:38 WAIT
+[17:15:47] 2 visits err=null | 23459302 sched=16:32 eta=17:26 LIVE 2957m leave=17:19 WAIT | 23401902 sched=16:58 eta=17:45 LIVE 12258m leave=17:38 WAIT
+[17:16:23] 2 visits err=null | 23459302 sched=16:32 eta=17:27 LIVE 2783m leave=17:20 WAIT | 23401902 sched=16:58 eta=17:45 LIVE 12239m leave=17:38 WAIT
+[17:16:58] 2 visits err=null | 23459302 sched=16:32 eta=17:27 LIVE 2448m leave=17:20 WAIT | 23401902 sched=16:58 eta=17:45 LIVE 12223m leave=17:38 WAIT
+[17:17:33] 2 visits err=null | 23459302 sched=16:32 eta=17:27 LIVE 2288m leave=17:20 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12199m leave=17:40 WAIT
+[17:18:09] 2 visits err=null | 23459302 sched=16:32 eta=17:27 LIVE 2105m leave=17:20 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12176m leave=17:40 WAIT
+[17:18:44] 2 visits err=null | 23459302 sched=16:32 eta=17:27 LIVE 2105m leave=17:20 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12163m leave=17:40 WAIT
+[17:19:20] 2 visits err=null | 23459302 sched=16:32 eta=17:28 LIVE 1994m leave=17:21 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12163m leave=17:40 WAIT
+[17:19:55] 2 visits err=null | 23459302 sched=16:32 eta=17:28 LIVE 1994m leave=17:21 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12163m leave=17:40 WAIT
+[17:20:31] 2 visits err=null | 23459302 sched=16:32 eta=17:28 LIVE 1928m leave=17:21 WAIT | 23401902 sched=16:58 eta=17:47 LIVE 12149m leave=17:40 WAIT
+[17:21:07] 2 visits err=null | 23459302 sched=16:32 eta=17:29 LIVE 1852m leave=17:22 WAIT | 23401902 sched=16:58 eta=17:48 LIVE 12140m leave=17:41 WAIT
+[17:21:42] 2 visits err=null | 23459302 sched=16:32 eta=17:29 LIVE 1810m leave=17:22 WAIT | 23401902 sched=16:58 eta=17:48 LIVE 12139m leave=17:41 WAIT
+[17:22:17] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1697m leave=17:23 WAIT | 23401902 sched=16:58 eta=17:49 LIVE 12037m leave=17:42 WAIT
+[17:22:53] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1697m leave=17:23 WAIT | 23401902 sched=16:58 eta=17:49 LIVE 12013m leave=17:42 WAIT
+[17:23:28] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1551m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 11808m leave=17:42 WAIT
+>>> LEAVE NOW veh=23459302 trip=585301554_061026 eta=17:30 live=true at=17:23:28
+[17:24:04] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1457m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 11692m leave=17:42 WAIT
+[17:24:39] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 1319m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 11534m leave=17:42 WAIT
+[17:25:14] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1177m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 11515m leave=17:42 WAIT
+[17:25:50] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1132m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 11363m leave=17:42 WAIT
+[17:26:25] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 1045m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 10721m leave=17:42 WAIT
+[17:27:01] 2 visits err=null | 23459302 sched=16:32 eta=17:30 LIVE 918m leave=17:23 ALERTED | 23401902 sched=16:58 eta=17:49 LIVE 9930m leave=17:42 WAIT
+[17:27:37] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 877m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 9271m leave=17:43 WAIT
+[17:28:12] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 770m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 8300m leave=17:43 WAIT
+[17:28:47] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 712m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 6998m leave=17:43 WAIT
+[17:29:23] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 685m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 6647m leave=17:43 WAIT
+[17:29:58] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 685m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 6647m leave=17:43 WAIT
+[17:30:33] 2 visits err=null | 23459302 sched=16:32 eta=17:31 LIVE 672m leave=17:24 ALERTED | 23401902 sched=16:58 eta=17:50 LIVE 5841m leave=17:43 WAIT
+[17:31:09] 1 visits err=null | 23401902 sched=16:58 eta=17:50 LIVE 5518m leave=17:43 WAIT

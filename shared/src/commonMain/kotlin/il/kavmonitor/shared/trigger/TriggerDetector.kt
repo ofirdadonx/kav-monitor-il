@@ -4,6 +4,7 @@ import il.kavmonitor.shared.model.LiveVisit
 import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.util.Geo
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 enum class TriggerReason {
@@ -25,6 +26,8 @@ enum class TriggerReason {
      * is at/near the stop (≈ within 100 m / 1 min), so for a live trip this means "arrived now or just passed".
      */
     DROPPED_AT_STOP,
+    /** Time to leave: now ≥ ETA at the boarding stop − walk time − buffer, for the next bus that can still be caught. */
+    LEAVE_NOW,
 }
 
 data class TriggerEvent(
@@ -36,6 +39,10 @@ data class TriggerEvent(
     val scheduledDeparture: Instant?,
     val eta: Instant?,
     val distanceMeters: Double?,
+    /** Whether the bus had a fresh GPS fix (live ETA) when this fired; false = schedule-based ETA. */
+    val live: Boolean = false,
+    /** LEAVE_NOW: the walk+buffer lead (minutes) used. */
+    val leadMinutes: Int? = null,
 )
 
 /**
@@ -62,7 +69,8 @@ class TriggerDetector(
      * @param reliable false when the response looks broken (e.g. the stop came back with no visits at all,
      *   or the source reported errors): presence is still used, but disappearances are ignored.
      */
-    fun onSnapshot(now: Instant, visits: List<LiveVisit>, reliable: Boolean = true): List<TriggerEvent> {
+    fun onSnapshot(now: Instant, visits: List<LiveVisit>, reliable: Boolean = true, leadMinutes: Int = 0): List<TriggerEvent> {
+        if (spec.trigger == TriggerType.LEAVE_FOR_STOP) return onLeaveSnapshot(now, visits, leadMinutes)
         val events = mutableListOf<TriggerEvent>()
         val presentKeys = visits.map { it.key }.toSet()
 
@@ -73,6 +81,7 @@ class TriggerDetector(
                 val ev = when (spec.trigger) {
                     TriggerType.DEPARTS_ORIGIN -> checkDepartedWhileListed(now, v)
                     TriggerType.ARRIVES_AT_STOP -> checkArrivingWhileListed(now, v)
+                    TriggerType.LEAVE_FOR_STOP -> null
                 }
                 if (ev != null) { fired += v.key; events += ev }
             }
@@ -87,6 +96,7 @@ class TriggerDetector(
                 val ev = when (spec.trigger) {
                     TriggerType.DEPARTS_ORIGIN -> checkDroppedFromOrigin(now, t.last)
                     TriggerType.ARRIVES_AT_STOP -> checkDroppedFromStop(now, t.last, t.lastSeenAt)
+                    TriggerType.LEAVE_FOR_STOP -> null
                 }
                 if (ev != null) { fired += key; events += ev }
             }
@@ -99,6 +109,42 @@ class TriggerDetector(
             if (fired.add(v.key)) events += event(v, TriggerReason.LEFT_ORIGIN_SCHEDULED, now, null)
         }
         return events
+    }
+
+    private var lastLeaveAlertAt: Instant? = null
+
+    /** Whether a "leave now" alert was already sent for this bus. */
+    fun alerted(key: String): Boolean = key in fired
+
+    /** Leave time / status of one bus for display (same rules as the alert). */
+    fun leaveInfo(v: LiveVisit, now: Instant, leadMinutes: Int): LeaveInfo =
+        LeavePlanner.info(v.eta, leadMinutes.minutes, now, v.key in fired, config.leaveGrace)
+
+    /**
+     * LEAVE_FOR_STOP. Uses the newest ETA every poll (ETAs of not-started trips are schedule-based and get re-evaluated
+     * as they update). Each bus alerts at most once: an ETA that moves later after the alert never re-alerts; an ETA that
+     * moves earlier for a not-yet-alerted bus simply brings its alert forward. Only the next catchable bus can fire, and
+     * not within [TriggerConfig.leaveMinAlertGap] of the previous alert. Buses whose leave time is already more than
+     * [TriggerConfig.leaveGrace] in the past are not catchable and never alert.
+     */
+    private fun onLeaveSnapshot(now: Instant, visits: List<LiveVisit>, leadMinutes: Int): List<TriggerEvent> {
+        val lead = leadMinutes.minutes
+        val unique = visits.groupBy { it.key }.values.map { g -> g.maxWith(compareBy({ it.hasGps }, { it.recordedAt ?: Instant.DISTANT_PAST })) }
+        unique.forEach { seenKeys += it.key }
+        val next = unique
+            .filter { it.key !in fired && it.eta != null }
+            .filter { LeavePlanner.catchable(LeavePlanner.leaveAt(it.eta!!, lead), now, config.leaveGrace) }
+            .minByOrNull { it.eta!! } ?: return emptyList()
+        val leaveAt = LeavePlanner.leaveAt(next.eta!!, lead)
+        if (now < leaveAt) return emptyList()
+        val last = lastLeaveAlertAt
+        if (last != null && now - last < config.leaveMinAlertGap) return emptyList()
+        fired += next.key
+        lastLeaveAlertAt = now
+        return listOf(
+            event(next, TriggerReason.LEAVE_NOW, now, distanceTo(next, spec.stop.lat, spec.stop.lon))
+                .copy(live = freshGps(now, next), leadMinutes = leadMinutes),
+        )
     }
 
     private fun freshGps(now: Instant, v: LiveVisit): Boolean {

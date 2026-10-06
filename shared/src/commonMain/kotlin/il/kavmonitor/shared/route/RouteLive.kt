@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /** What the live route view shows: one direction (line_ref) and its ordered stops. */
@@ -56,6 +57,12 @@ data class RouteBus(
     val etaAtTarget: Instant?,
     val etaAtDestination: Instant?,
     val remainingMeters: Double?,
+    /**
+     * When this view saw the bus leave the origin: it was listed at the origin on the previous refresh (≤ 2.5 min earlier)
+     * and is now live and gone from the origin's list. Null unless actually observed. SIRI drops a trip from the origin
+     * list when it goes live, ≈1 min before it pulls out (seen live), so this is approximate (± ~1 min).
+     */
+    val departedObservedAt: Instant? = null,
 ) {
     val hasGps: Boolean get() = lat != null && lon != null
     val isActive: Boolean get() = status == RouteBusStatus.ACTIVE || status == RouteBusStatus.AT_ORIGIN
@@ -93,6 +100,9 @@ class RouteLiveFetcher(
     private val targetIdx: Int? = request.targetStopCode?.let { c -> stops.indexOfFirst { it.code == c }.takeIf { it >= 0 } }
     val sampleIndices: List<Int> = (RouteSampling.sampleIndices(stops) + listOfNotNull(targetIdx)).distinct().sorted()
     private val substitute = mutableMapOf<Int, Int>()
+    /** key → time of the last refresh in which the bus was listed at the origin (origin sample succeeded). */
+    private val lastSeenAtOrigin = mutableMapOf<String, Instant>()
+    private val departedAt = mutableMapOf<String, Instant>()
 
     private class SampleResult(val base: Int, val used: Int?, val snapshot: StopSnapshot?)
 
@@ -137,7 +147,19 @@ class RouteLiveFetcher(
                 byKey.getOrPut(v.key) { mutableListOf() } += r.used!! to v
             }
         }
-        val buses = byKey.map { (key, list) -> busFrom(now, key, list, succeeded) }
+        if (0 in succeeded) {
+            for ((key, list) in byKey) {
+                val atOrigin = list.any { it.first == 0 }
+                val seen = lastSeenAtOrigin[key]
+                if (atOrigin) {
+                    lastSeenAtOrigin[key] = now
+                } else if (seen != null && list.any { it.second.hasGps } && now - seen <= MAX_DEPARTURE_OBSERVE_GAP && key !in departedAt) {
+                    departedAt[key] = now
+                }
+            }
+            lastSeenAtOrigin.keys.retainAll { k -> byKey[k]?.any { it.first == 0 } == true }
+        }
+        val buses = byKey.map { (key, list) -> busFrom(now, key, list, succeeded).copy(departedObservedAt = departedAt[key]) }
             .sortedWith(
                 compareBy<RouteBus>({ statusOrder(it.status) }, { -(it.position?.fraction ?: -1.0) }, { it.scheduledStart })
             )
@@ -209,5 +231,7 @@ class RouteLiveFetcher(
         /** Fix farther than this from the stop-to-stop polyline: no percentage (straight chords between far stops can be ~1 km off the road). */
         const val OFF_ROUTE_METERS = 2_000.0
         val NOT_STARTED_GRACE: Duration = 2.minutes
+        /** A departure counts as observed only if the bus was seen at the origin at most this long before. */
+        val MAX_DEPARTURE_OBSERVE_GAP: Duration = 150.seconds
     }
 }

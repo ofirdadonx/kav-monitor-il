@@ -16,11 +16,21 @@
     <string name="notif_status_waiting">ממתין לעדכון ראשון… · עד %1$s</string>
     <string name="notif_status_error">שגיאה: %1$s (ממשיך לנסות)</string>
     <string name="notif_action_stop">עצור</string>
+    <string name="notif_status_leave">זמן לצאת ל%1$s</string>
+    <string name="notif_leave_next">צאו ב-%1$s (בעוד %2$d דק׳) · האוטובוס ב-%3$s %4$s</string>
+    <string name="notif_leave_now">צאו עכשיו · האוטובוס ב-%1$s %2$s</string>
+    <string name="notif_leave_none">אין כרגע אוטובוס שאפשר להספיק</string>
+    <string name="notif_eta_live">(חי)</string>
+    <string name="notif_eta_scheduled">(לפי לו״ז)</string>
 
     <!-- Alert notification -->
     <string name="alert_departed_title">קו %1$s יצא מ%2$s!</string>
     <string name="alert_arrived_title">קו %1$s מגיע ל%2$s!</string>
     <string name="alert_body">רכב %1$s · יציאה מתוכננת %2$s · זמן לצאת לתחנה</string>
+    <string name="alert_leave_title">צא עכשיו — %1$s מגיע ל%2$s ב-%3$s</string>
+    <string name="alert_leave_body">רכב %1$s · הליכה %2$d דק׳ + מרווח %3$d דק׳ · זמן הגעה %4$s</string>
+    <string name="alert_eta_live">חי (GPS)</string>
+    <string name="alert_eta_scheduled">לפי לוח הזמנים (האוטובוס טרם יצא)</string>
 
     <!-- Finished -->
     <string name="notif_finished_title">המעקב אחרי קו %1$s הסתיים</string>

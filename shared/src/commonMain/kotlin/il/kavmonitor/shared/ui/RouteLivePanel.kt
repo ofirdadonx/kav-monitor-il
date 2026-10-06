@@ -31,7 +31,14 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
 /** Live route view items: active-bus count, one card per active bus, upcoming departures. */
-fun LazyListScope.routeLiveItems(state: RouteLiveState?, now: Instant, targetStop: RouteStop?, keyPrefix: String = "route") {
+fun LazyListScope.routeLiveItems(
+    state: RouteLiveState?,
+    now: Instant,
+    targetStop: RouteStop?,
+    keyPrefix: String = "route",
+    /** Departures observed elsewhere (the running departs-origin watch), by bus key. */
+    observedDepartures: Map<String, Instant> = emptyMap(),
+) {
     item(key = "$keyPrefix-header") {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -66,7 +73,7 @@ fun LazyListScope.routeLiveItems(state: RouteLiveState?, now: Instant, targetSto
     // A snapshot kept from the previous request may have been sampled for another target: no ETA then (never mislabel).
     val etaStop = targetStop?.takeIf { it.code == snap.targetStopCode }
     items(snap.active, key = { "$keyPrefix-bus-" + it.key }) { bus ->
-        BusDetailsCard(bus.toDetails(etaStop, origin?.code), now)
+        BusDetailsCard(bus.toDetails(etaStop, origin?.code, observedDepartures[bus.key]), now)
     }
     if (snap.noGps.isNotEmpty()) {
         item(key = "$keyPrefix-nogps") {

@@ -1,5 +1,7 @@
 package il.kavmonitor.shared.watch
 
+import il.kavmonitor.shared.model.TriggerType
+
 import il.kavmonitor.shared.data.LiveDataSource
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.trigger.TriggerConfig
@@ -27,7 +29,8 @@ class WatchEngine(
     ): WatchState {
         val detector = TriggerDetector(spec, config)
         val start = clock.now()
-        var state = WatchState(spec, WatchPhase.RUNNING, start, start + spec.durationMinutes.minutes)
+        var state = WatchState(spec, WatchPhase.RUNNING, start, start + spec.durationMinutes.minutes,
+            leavePlan = if (spec.trigger == TriggerType.LEAVE_FOR_STOP) LeavePlanHolder.planFor(spec) else null)
         onState(state)
         while (true) {
             val now = clock.now()
@@ -37,7 +40,9 @@ class WatchEngine(
                 val visits = snap.forLine(spec.lineRef, spec.lineName, spec.operatorRef)
                 val reliable = snap.sourceErrors == null && snap.allVisits.isNotEmpty()
                 val polledAt = clock.now()
-                val events = detector.onSnapshot(polledAt, visits, reliable)
+                val plan = if (spec.trigger == TriggerType.LEAVE_FOR_STOP) LeavePlanHolder.planFor(spec) else null
+                val lead = plan?.leadMinutes ?: 0
+                val events = detector.onSnapshot(polledAt, visits, reliable, lead)
                 val alertedKeys = (state.alerts + events).map { it.key }.toSet()
                 val buses = uniqueByKey(visits).sortedBy { it.eta ?: it.originDepartureTime }.map { v ->
                     val fresh = v.hasGps && v.recordedAt != null && polledAt - v.recordedAt <= config.gpsFreshMaxAge
@@ -48,13 +53,16 @@ class WatchEngine(
                             Geo.distanceMeters(v.lat, v.lon, spec.stop.lat, spec.stop.lon) else null,
                         alerted = v.key in alertedKeys,
                         lat = v.lat, lon = v.lon,
-                    )
+                    ).let { b ->
+                        if (plan == null) b else detector.leaveInfo(v, polledAt, lead).let { b.copy(leaveAt = it.leaveAt, leaveStatus = it.status) }
+                    }
                 }
                 val next = state.copy(
                     lastAttemptAt = polledAt, lastSuccessAt = polledAt,
                     lastError = snap.sourceErrors?.let { "curlbus: $it" },
                     buses = buses, busesSeen = detector.busesSeen,
                     alerts = state.alerts + events, polls = state.polls + 1,
+                    leavePlan = plan,
                 )
                 events.forEach { onTrigger(it, next) }
                 next

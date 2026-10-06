@@ -10,6 +10,8 @@ import il.kavmonitor.shared.resources.ago_seconds
 import il.kavmonitor.shared.resources.line_with_operator
 import il.kavmonitor.shared.resources.trigger_arrives_short
 import il.kavmonitor.shared.resources.trigger_departs_short
+import il.kavmonitor.shared.resources.trigger_leave_short
+import il.kavmonitor.shared.resources.reason_leave_now
 import il.kavmonitor.shared.resources.reason_at_stop_eta
 import il.kavmonitor.shared.resources.reason_at_stop_gps
 import il.kavmonitor.shared.resources.reason_dropped_at_stop
@@ -33,6 +35,7 @@ fun isolate(text: String): String = "\u2068$text\u2069"
 fun triggerText(spec: WatchSpec): String = when (spec.trigger) {
     TriggerType.DEPARTS_ORIGIN -> stringResource(Res.string.trigger_departs_short, isolate(spec.origin.name))
     TriggerType.ARRIVES_AT_STOP -> stringResource(Res.string.trigger_arrives_short, isolate(spec.stop.name))
+    TriggerType.LEAVE_FOR_STOP -> stringResource(Res.string.trigger_leave_short, isolate(spec.stop.name), spec.leave?.walkMinutes ?: 0)
 }
 
 /** "2026-10-05" → "05/10" (day/month, Israeli order). */
@@ -70,5 +73,6 @@ fun reasonText(r: TriggerReason): String = stringResource(
         TriggerReason.AT_STOP_GPS -> Res.string.reason_at_stop_gps
         TriggerReason.AT_STOP_ETA -> Res.string.reason_at_stop_eta
         TriggerReason.DROPPED_AT_STOP -> Res.string.reason_dropped_at_stop
+        TriggerReason.LEAVE_NOW -> Res.string.reason_leave_now
     },
 )

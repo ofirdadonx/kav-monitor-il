@@ -92,3 +92,29 @@ tasks.register<JavaExec>("routeLiveSmoke") {
     )
     notCompatibleWithConfigurationCache("dev runner")
 }
+
+// Live "time to leave" run: ./gradlew :shared:leaveLiveSmoke -PstopCode=36926 -PwalkMinutes=6 -Pminutes=60 [-PoutDir=...]
+tasks.register<JavaExec>("leaveLiveSmoke") {
+    group = "verification"
+    description = "Runs the LEAVE_FOR_STOP detector live against one curlbus stop and measures alert vs. actual arrival."
+    val jvmCompilation = kotlin.jvm().compilations.getByName("main")
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath = files(jvmCompilation.output.allOutputs, jvmCompilation.runtimeDependencyFiles)
+    mainClass.set("il.kavmonitor.shared.dev.LeaveLiveSmokeKt")
+    args = listOf(
+        (project.findProperty("stopCode") as String?) ?: "36926",
+        (project.findProperty("walkMinutes") as String?) ?: "6",
+        (project.findProperty("minutes") as String?) ?: "60",
+        (project.findProperty("outDir") as String?) ?: "/tmp/leave_36926",
+    )
+    notCompatibleWithConfigurationCache("dev runner")
+}
+
+// Prints the classpath of the jvm dev runners (to run a long live smoke with plain `java` without holding Gradle).
+tasks.register("printDevClasspath") {
+    val jvmCompilation = kotlin.jvm().compilations.getByName("main")
+    dependsOn(jvmCompilation.compileTaskProvider)
+    val cp = files(jvmCompilation.output.allOutputs, jvmCompilation.runtimeDependencyFiles)
+    doLast { println("CP=" + cp.asPath) }
+    notCompatibleWithConfigurationCache("dev runner")
+}

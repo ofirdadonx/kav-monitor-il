@@ -85,7 +85,27 @@ data class StopSnapshot(
 }
 
 @Serializable
-enum class TriggerType { DEPARTS_ORIGIN, ARRIVES_AT_STOP }
+enum class TriggerType {
+    DEPARTS_ORIGIN,
+    ARRIVES_AT_STOP,
+    /** "Time to leave": alert when it's time to walk to the boarding stop [WatchSpec.stop] (see [LeavePlan]). */
+    LEAVE_FOR_STOP,
+}
+
+/**
+ * Walking plan of a LEAVE_FOR_STOP watch: alert at (ETA at the boarding stop − [walkMinutes] − [bufferMinutes]).
+ * [walkMinutes] is computed from the user's location (straight line × detour ÷ speed) unless [manual].
+ */
+@Serializable
+data class LeavePlan(
+    val walkMinutes: Int,
+    val bufferMinutes: Int = 1,
+    val manual: Boolean = false,
+    /** Straight-line distance user → boarding stop the walk time was computed from (null for manual). */
+    val walkDistanceMeters: Double? = null,
+) {
+    val leadMinutes: Int get() = walkMinutes + bufferMinutes
+}
 
 /** Everything needed to run a watch without touching the static API again (also what recents store). */
 @Serializable
@@ -96,10 +116,12 @@ data class WatchSpec(
     val agencyName: String,
     val directionLabel: String,
     val trigger: TriggerType,
-    /** The stop that is polled: origin for DEPARTS_ORIGIN, chosen stop for ARRIVES_AT_STOP. */
+    /** The stop that is polled: origin for DEPARTS_ORIGIN, chosen stop for ARRIVES_AT_STOP, boarding stop for LEAVE_FOR_STOP. */
     val stop: RouteStop,
     val origin: RouteStop,
     val durationMinutes: Int = 60,
+    /** LEAVE_FOR_STOP only: walk time + buffer when the watch was started. */
+    val leave: LeavePlan? = null,
 ) {
     /** Identity used for de-duplicating recents (line+operator+direction+trigger(+stop)). */
     val recentKey: String get() = "$lineRef|$operatorRef|$trigger|${stop.code}"

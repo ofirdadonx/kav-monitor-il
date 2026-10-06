@@ -1,5 +1,18 @@
 package il.kavmonitor.shared.ui
 
+import il.kavmonitor.shared.trigger.LeaveStatus
+import il.kavmonitor.shared.model.TriggerType
+import il.kavmonitor.shared.resources.bus_departed_late
+import il.kavmonitor.shared.resources.bus_departed_early
+import il.kavmonitor.shared.resources.bus_departed_on_time
+import il.kavmonitor.shared.resources.leave_at
+import il.kavmonitor.shared.resources.leave_now
+import il.kavmonitor.shared.resources.leave_alerted
+import il.kavmonitor.shared.resources.leave_not_catchable
+import il.kavmonitor.shared.resources.leave_no_eta
+import il.kavmonitor.shared.resources.eta_live
+import il.kavmonitor.shared.resources.eta_scheduled
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,9 +85,16 @@ data class BusDetails(
     val etaDestination: Instant?,
     val distanceToStopMeters: Double? = null,
     val alerted: Boolean = false,
+    /** Time-to-leave watch: leave time and status for this bus (null on other screens). */
+    val leaveAt: Instant? = null,
+    val leaveStatus: LeaveStatus? = null,
+    /** Whether [eta] is a live (GPS-tracked) prediction; null = don't label. */
+    val etaLive: Boolean? = null,
+    /** Observed departure from the origin (null unless actually observed). */
+    val departedAt: Instant? = null,
 )
 
-fun RouteBus.toDetails(targetStop: RouteStop?, originCode: String?): BusDetails = BusDetails(
+fun RouteBus.toDetails(targetStop: RouteStop?, originCode: String?, observedDeparture: Instant? = null): BusDetails = BusDetails(
     key = key,
     vehicleRef = vehicleRef,
     phase = when (status) {
@@ -94,13 +114,14 @@ fun RouteBus.toDetails(targetStop: RouteStop?, originCode: String?): BusDetails 
     eta = etaAtTarget,
     etaIsDeparture = targetStop != null && targetStop.code == originCode,
     etaDestination = etaAtDestination,
+    departedAt = departedObservedAt ?: observedDeparture,
 )
 
 /**
  * Watch-screen bus (from the watched stop's list). The bus is listed at the watched stop, so it has not passed it:
  * its GPS is projected onto the stops before (and including) the watched stop.
  */
-fun BusView.toDetails(spec: WatchSpec, stops: List<RouteStop>?): BusDetails {
+fun BusView.toDetails(spec: WatchSpec, stops: List<RouteStop>?, observedDeparture: Instant? = null): BusDetails {
     val atOriginWatch = spec.stop.code == spec.origin.code
     val hasGps = lat != null && lon != null
     val phase = when {
@@ -130,7 +151,11 @@ fun BusView.toDetails(spec: WatchSpec, stops: List<RouteStop>?): BusDetails {
         etaIsDeparture = atOriginWatch,
         etaDestination = null,
         distanceToStopMeters = if (phase == BusPhase.ACTIVE) distanceToStopMeters else null,
-        alerted = alerted,
+        alerted = alerted && leaveStatus == null,
+        leaveAt = leaveAt,
+        leaveStatus = leaveStatus,
+        etaLive = if (spec.trigger == TriggerType.LEAVE_FOR_STOP) hasFreshGps else null,
+        departedAt = observedDeparture,
     )
 }
 
@@ -165,6 +190,35 @@ fun BusDetailsCard(b: BusDetails, now: Instant, modifier: Modifier = Modifier) {
                 )
                 BusPhase.ACTIVE, BusPhase.NO_GPS -> sched?.let { Text(stringResource(Res.string.bus_departure, it), style = small) }
             }
+            b.departedAt?.let { dep ->
+                val s0 = b.scheduledStart
+                if (s0 != null) {
+                    val delta = ((dep - s0).inWholeSeconds / 60.0).roundToInt()
+                    Text(
+                        when {
+                            delta > 0 -> stringResource(Res.string.bus_departed_late, dep.israelClock(), delta)
+                            delta < 0 -> stringResource(Res.string.bus_departed_early, dep.israelClock(), -delta)
+                            else -> stringResource(Res.string.bus_departed_on_time, dep.israelClock())
+                        },
+                        style = small,
+                    )
+                }
+            }
+            // Time to leave
+            b.leaveStatus?.let { st ->
+                val leave = b.leaveAt
+                when (st) {
+                    LeaveStatus.WAIT -> if (leave != null) Text(stringResource(Res.string.leave_at, leave.israelClock(), minutesUntil(leave, now)),
+                        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    LeaveStatus.LEAVE_NOW -> Text(stringResource(Res.string.leave_now), style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                    LeaveStatus.ALERTED -> Text(stringResource(Res.string.leave_alerted, leave?.israelClock() ?: "?"),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    LeaveStatus.NOT_CATCHABLE -> Text(stringResource(Res.string.leave_not_catchable, leave?.israelClock() ?: "?"),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    LeaveStatus.NO_ETA -> Text(stringResource(Res.string.leave_no_eta), style = small)
+                }
+            }
             // Progress
             if (b.fraction != null && b.phase == BusPhase.ACTIVE) {
                 LinearProgressIndicator(progress = { b.fraction.toFloat() }, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
@@ -188,7 +242,7 @@ fun BusDetailsCard(b: BusDetails, now: Instant, modifier: Modifier = Modifier) {
                         b.etaIsDeparture -> stringResource(Res.string.bus_dep_eta, clock, m)
                         m <= 0 -> stringResource(Res.string.bus_eta_at_now, isolate(b.etaStopName), clock)
                         else -> stringResource(Res.string.bus_eta_at, isolate(b.etaStopName), clock, m)
-                    },
+                    } + (b.etaLive?.let { " · " + stringResource(if (it) Res.string.eta_live else Res.string.eta_scheduled) } ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

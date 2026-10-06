@@ -7,6 +7,9 @@ import il.kavmonitor.shared.data.RouteRepository
 import il.kavmonitor.shared.data.StaticDataSource
 import il.kavmonitor.shared.data.StrideStaticDataSource
 import il.kavmonitor.shared.data.createHttpClient
+import il.kavmonitor.shared.location.LocationController
+import il.kavmonitor.shared.location.LocationProvider
+import il.kavmonitor.shared.location.NoLocationProvider
 import il.kavmonitor.shared.platform.WatchLauncher
 import il.kavmonitor.shared.recents.RecentsStore
 import il.kavmonitor.shared.trigger.TriggerConfig
@@ -30,10 +33,13 @@ class AppGraph(
     val routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
     /** Live source of the foreground route view (same backend as [live]; separate so tests can tell them apart). */
     val routeLiveSource: LiveDataSource = live,
+    /** User location for the "nearest stop" sections (Android: LocationManager; tests: shadowed). */
+    val locationProvider: LocationProvider = NoLocationProvider,
 ) {
     val routes = RouteRepository(static, clock)
     val recents = RecentsStore(settings)
+    val location = LocationController(locationProvider, settings)
     val controller: AppController by lazy {
-        AppController(routes, recents, launcher, routeLiveSource, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion)
+        AppController(routes, recents, launcher, routeLiveSource, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location)
     }
 }

@@ -9,6 +9,7 @@ open class KavMonitorApp : Application() {
     lateinit var graph: AppGraph
         private set
     val launcher by lazy { AndroidWatchLauncher(this) }
+    val locationProvider by lazy { AndroidLocationProvider(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -21,6 +22,7 @@ open class KavMonitorApp : Application() {
         settings = SharedPreferencesSettings(getSharedPreferences("kav_monitor", Context.MODE_PRIVATE)),
         launcher = launcher,
         appVersion = BuildConfig.VERSION_NAME,
+        locationProvider = locationProvider,
     )
 }
 

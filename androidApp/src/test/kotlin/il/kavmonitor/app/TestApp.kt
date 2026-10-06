@@ -73,6 +73,7 @@ class TestApp : KavMonitorApp() {
                 settings = MapSettings(), launcher = launcher, httpClient = client,
                 appVersion = BuildConfig.VERSION_NAME, clock = TestClock,
                 triggerConfig = TriggerConfig(pollInterval = TestConfig.pollInterval),
+                locationProvider = locationProvider,
             )
         }
         val client = HttpClient(MockEngine { req ->
@@ -102,6 +103,7 @@ class TestApp : KavMonitorApp() {
             clock = TestClock,
             appVersion = BuildConfig.VERSION_NAME,
             routeLiveInterval = TestConfig.routeLiveInterval,
+            locationProvider = locationProvider,
         )
     }
 

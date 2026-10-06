@@ -1,5 +1,13 @@
 package il.kavmonitor.shared.ui
 
+import il.kavmonitor.shared.model.TriggerType
+import il.kavmonitor.shared.trigger.TriggerReason
+import il.kavmonitor.shared.watch.LeavePlanHolder
+import il.kavmonitor.shared.resources.walk_in_use
+import il.kavmonitor.shared.resources.walk_in_use_auto
+import il.kavmonitor.shared.resources.walk_in_use_manual
+import il.kavmonitor.shared.resources.walk_in_use_default
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,6 +78,17 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         }
     }
 
+    // Time to leave: refresh the walk time from the location while this screen is visible and the watch runs.
+    if (spec != null && spec.trigger == TriggerType.LEAVE_FOR_STOP && state?.isActive == true) {
+        DisposableEffect(spec.recentKey) {
+            val token = c.location.attach()
+            onDispose { c.location.detach(token) }
+        }
+        LaunchedEffect(c.location.fix, spec.recentKey) { c.refreshWatchWalk(spec) }
+    }
+    val routeSnap = c.routeLive.state?.snapshot
+    val observed = observedDepartures(state, routeSnap)
+
     LazyColumn(
         Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -90,6 +109,17 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                     Text(lineTitle(state.spec), style = MaterialTheme.typography.titleLarge)
                     Text("← " + isolate(state.spec.directionLabel))
                     Text(triggerText(state.spec), style = MaterialTheme.typography.titleMedium)
+                    if (state.spec.trigger == TriggerType.LEAVE_FOR_STOP) {
+                        val plan = (if (state.isActive) LeavePlanHolder.planFor(state.spec) else null) ?: state.leavePlan ?: state.spec.leave
+                        if (plan != null) {
+                            val how = when {
+                                plan.manual -> stringResource(Res.string.walk_in_use_manual)
+                                plan.walkDistanceMeters != null -> stringResource(Res.string.walk_in_use_auto, distanceText(plan.walkDistanceMeters))
+                                else -> stringResource(Res.string.walk_in_use_default)
+                            }
+                            Text(stringResource(Res.string.walk_in_use, plan.walkMinutes, plan.bufferMinutes, how), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                     Text(
                         when (state.phase) {
                             WatchPhase.RUNNING -> stringResource(Res.string.watch_status_running, state.endsAt.israelClock())
@@ -124,7 +154,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         if (state.buses.isEmpty() && state.lastSuccessAt != null) {
             item { Text(stringResource(Res.string.watch_no_buses), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        items(state.buses, key = { "watch-" + it.key }) { BusDetailsCard(it.toDetails(state.spec, stops?.stops), now) }
+        items(state.buses, key = { "watch-" + it.key }) { BusDetailsCard(it.toDetails(state.spec, stops?.stops, observed[it.key]), now) }
         if (state.alerts.isNotEmpty()) {
             item { Text(stringResource(Res.string.watch_alerts_header), style = MaterialTheme.typography.titleMedium) }
             items(state.alerts.reversed(), key = { "alert_" + it.key }) { a ->
@@ -137,13 +167,32 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                 )
             }
         }
+        // Nearest stop to the user (foreground location, only while the watch runs and this item is on screen).
+        if (stops != null && state.isActive) {
+            item(key = "watch-nearest") { NearestStopSection(c.location, stops.stops, now, watchedStop = state.spec.stop) }
+        }
         item { HorizontalDivider() }
         if (!state.isActive) {
             // no live route view for a finished watch
         } else if (stops == null) {
             item { Text(stringResource(Res.string.route_live_need_stops), style = MaterialTheme.typography.bodySmall) }
         } else {
-            routeLiveItems(c.routeLive.state?.takeIf { it.request.lineRef == state.spec.lineRef }, now, state.spec.stop, keyPrefix = "w")
+            routeLiveItems(c.routeLive.state?.takeIf { it.request.lineRef == state.spec.lineRef }, now, state.spec.stop, keyPrefix = "w", observedDepartures = observed)
         }
     }
+}
+
+/**
+ * Departures from the origin that the app actually observed, by bus key: the departs-origin watch's own detections
+ * (trip dropped off the origin list / GPS away from it; not the "scheduled time reached" fallback) and the live
+ * route view's origin sample.
+ */
+internal fun observedDepartures(state: WatchState?, snap: il.kavmonitor.shared.route.RouteLiveSnapshot?): Map<String, kotlin.time.Instant> {
+    val m = mutableMapOf<String, kotlin.time.Instant>()
+    snap?.buses?.forEach { b -> b.departedObservedAt?.let { m[b.key] = it } }
+    if (state?.spec?.trigger == TriggerType.DEPARTS_ORIGIN) {
+        state.alerts.filter { it.reason == TriggerReason.LEFT_ORIGIN_DROPPED || it.reason == TriggerReason.LEFT_ORIGIN_GPS }
+            .forEach { m[it.key] = it.at }
+    }
+    return m
 }

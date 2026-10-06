@@ -1,0 +1,11 @@
+after grant: access=GRANTED updating=true perm=0
+location set: 32.0835,34.799
+denied path ok; starts=2
+location set: 32.0835,34.799
+near Savidor: nearest=GeoFix(lat=32.0835, lon=34.799, accuracyMeters=8.0, time=2026-10-06T14:32:51.432Z) → 20001
+location set: 31.9625,34.8283
+location set: 31.962154,34.8406
+ongoing: קו 194 · זמן לצאת לשלמה לוי/שער יפו | צאו ב-17:37 (בעוד 5 דק׳) · האוטובוס ב-17:58 (חי) | chronometer=true countdown=true
+location set: 31.962154,34.8439
+alert: צא עכשיו — 194 מגיע לשלמה לוי/שער יפו ב-17:58 | רכב 7692269 · הליכה 25 דק׳ + מרווח 1 דק׳ · זמן הגעה חי (GPS)
+after stop: requests stayed at 68, location listeners=0

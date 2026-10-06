@@ -73,6 +73,18 @@ import il.kavmonitor.shared.resources.trigger_departs_origin
 import il.kavmonitor.shared.resources.trigger_title
 import il.kavmonitor.shared.resources.unknown
 import il.kavmonitor.shared.route.RouteLiveRequest
+import il.kavmonitor.shared.resources.trigger_leave
+import il.kavmonitor.shared.resources.choose_boarding_stop
+import il.kavmonitor.shared.resources.walk_title
+import il.kavmonitor.shared.resources.walk_auto
+import il.kavmonitor.shared.resources.walk_manual
+import il.kavmonitor.shared.resources.walk_default
+import il.kavmonitor.shared.resources.walk_reset
+import il.kavmonitor.shared.resources.walk_summary
+import il.kavmonitor.shared.resources.walk_minutes
+import il.kavmonitor.shared.resources.walk_need_stop
+import il.kavmonitor.shared.trigger.TriggerConfig
+import androidx.compose.material3.OutlinedButton
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
@@ -85,9 +97,18 @@ fun NewWatchScreen(c: AppController) {
     val selected = c.selectedDirection
     val readyStops = (c.stops as? Loadable.Ready)?.value
 
+    // Time to leave needs the location for the walk time: keep it updating while this screen shows that trigger.
+    if (selected != null && readyStops != null && c.trigger == TriggerType.LEAVE_FOR_STOP) {
+        DisposableEffect(Unit) {
+            val token = c.location.attach()
+            onDispose { c.location.detach(token) }
+        }
+        LaunchedEffect(c.location.fix, readyStops) { c.defaultBoardingStop() }
+    }
+
     // Live route view: refreshes only while this screen shows a direction (detached on leave / direction change).
     if (selected != null && readyStops != null) {
-        val target = if (c.trigger == TriggerType.ARRIVES_AT_STOP) c.targetStopCode else null
+        val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) c.targetStopCode else null
         DisposableEffect(selected.lineRef, readyStops, target) {
             val token = c.routeLive.attach(
                 RouteLiveRequest(selected.lineRef, selected.routeShortName, selected.operatorRef, readyStops.stops, target),
@@ -157,7 +178,18 @@ fun NewWatchScreen(c: AppController) {
                             }
                             StopListSource.GTFS_TODAY -> {}
                         }
-                        val target = if (c.trigger == TriggerType.ARRIVES_AT_STOP) list.stops.firstOrNull { it.code == c.targetStopCode } else null
+                        item(key = "nearest") {
+                            NearestStopSection(
+                                c.location, list.stops, now,
+                                isSelected = { n ->
+                                    if (c.trigger == TriggerType.LEAVE_FOR_STOP) c.targetStopCode == n.stop.code
+                                    else if (n.index == 0) c.trigger == TriggerType.DEPARTS_ORIGIN
+                                    else c.trigger == TriggerType.ARRIVES_AT_STOP && c.targetStopCode == n.stop.code
+                                },
+                                onUse = { c.useNearestStop(it) },
+                            )
+                        }
+                        val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) list.stops.firstOrNull { it.code == c.targetStopCode } else null
                         routeLiveItems(c.routeLive.state?.takeIf { it.request.lineRef == selected.lineRef }, now, target, keyPrefix = "nw")
                         item { HorizontalDivider() }
                         item { Text(stringResource(Res.string.trigger_title), style = MaterialTheme.typography.titleMedium) }
@@ -170,10 +202,17 @@ fun NewWatchScreen(c: AppController) {
                                 c.trigger = TriggerType.ARRIVES_AT_STOP
                             }
                         }
+                        item {
+                            RadioRow(c.trigger == TriggerType.LEAVE_FOR_STOP, stringResource(Res.string.trigger_leave)) { c.selectLeaveTrigger() }
+                        }
+                        if (c.trigger == TriggerType.LEAVE_FOR_STOP) {
+                            item(key = "walk") { WalkPanel(c, list.stops.firstOrNull { it.code == c.targetStopCode }) }
+                        }
                         item { DurationPicker(c) }
-                        if (c.trigger == TriggerType.ARRIVES_AT_STOP) {
-                            item { Text(stringResource(Res.string.choose_stop), style = MaterialTheme.typography.titleMedium) }
-                            items(list.stops.drop(1), key = { "stop_" + it.sequence + "_" + it.code }) { stop ->
+                        if (c.trigger != TriggerType.DEPARTS_ORIGIN) {
+                            val leave = c.trigger == TriggerType.LEAVE_FOR_STOP
+                            item { Text(stringResource(if (leave) Res.string.choose_boarding_stop else Res.string.choose_stop), style = MaterialTheme.typography.titleMedium) }
+                            items(if (leave) list.stops else list.stops.drop(1), key = { "stop_" + it.sequence + "_" + it.code }) { stop ->
                                 RadioRow(
                                     selected = c.targetStopCode == stop.code,
                                     text = stringResource(Res.string.stop_item, stop.sequence, stop.name),
@@ -190,7 +229,7 @@ fun NewWatchScreen(c: AppController) {
         if (selected != null && readyStops != null) {
             Surface(tonalElevation = 3.dp, shadowElevation = 6.dp, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (c.trigger == TriggerType.ARRIVES_AT_STOP && c.targetStopCode == null) {
+                    if (c.trigger != TriggerType.DEPARTS_ORIGIN && c.targetStopCode == null) {
                         Text(stringResource(Res.string.choose_stop_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = { c.startNewWatch() }, enabled = c.canStart(), modifier = Modifier.fillMaxWidth()) {
@@ -249,6 +288,41 @@ private fun LabeledRow(label: String, value: String, sub: String?) {
         Column(Modifier.weight(1f)) {
             Text(value, style = MaterialTheme.typography.bodyLarge)
             if (!sub.isNullOrBlank()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Time to leave: walk time (computed from the location, or set by the user) + buffer. */
+@Composable
+private fun WalkPanel(c: AppController, stop: il.kavmonitor.shared.model.RouteStop?) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(Res.string.walk_title), style = MaterialTheme.typography.titleMedium)
+            if (stop == null) {
+                Text(stringResource(Res.string.walk_need_stop), style = MaterialTheme.typography.bodySmall, color = muted)
+                return@Column
+            }
+            val plan = c.leavePlan(stop)
+            val auto = c.autoWalk(stop)
+            Text(
+                when {
+                    plan.manual -> stringResource(Res.string.walk_manual, plan.walkMinutes)
+                    plan.walkDistanceMeters != null -> stringResource(
+                        Res.string.walk_auto, plan.walkMinutes, distanceText(plan.walkDistanceMeters),
+                        TriggerConfig.WALK_DETOUR_FACTOR.toString(), TriggerConfig.WALK_SPEED_M_PER_MIN.toInt(),
+                    )
+                    else -> stringResource(Res.string.walk_default, plan.walkMinutes)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { c.changeWalkMinutes(-1, stop) }, enabled = plan.walkMinutes > 0) { Text("−") }
+                Text(stringResource(Res.string.walk_minutes, plan.walkMinutes), style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(onClick = { c.changeWalkMinutes(+1, stop) }, enabled = plan.walkMinutes < TriggerConfig.MAX_WALK_MINUTES) { Text("+") }
+                if (plan.manual && auto != null) TextButton(onClick = { c.walkOverrideMinutes = null }) { Text(stringResource(Res.string.walk_reset)) }
+            }
+            Text(stringResource(Res.string.walk_summary, plan.bufferMinutes, plan.leadMinutes), style = MaterialTheme.typography.bodySmall, color = muted)
         }
     }
 }

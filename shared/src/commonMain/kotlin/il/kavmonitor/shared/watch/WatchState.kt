@@ -1,5 +1,8 @@
 package il.kavmonitor.shared.watch
 
+import il.kavmonitor.shared.model.LeavePlan
+import il.kavmonitor.shared.trigger.LeaveStatus
+
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.trigger.TriggerEvent
 import kotlin.time.Instant
@@ -19,6 +22,9 @@ data class BusView(
     val alerted: Boolean,
     val lat: Double? = null,
     val lon: Double? = null,
+    /** LEAVE_FOR_STOP: when to leave for this bus (ETA − walk − buffer) and whether it can still be caught. */
+    val leaveAt: Instant? = null,
+    val leaveStatus: LeaveStatus? = null,
 )
 
 data class WatchState(
@@ -34,6 +40,12 @@ data class WatchState(
     val busesSeen: Int = 0,
     val alerts: List<TriggerEvent> = emptyList(),
     val polls: Int = 0,
+    /** LEAVE_FOR_STOP: walk plan used on the last poll. */
+    val leavePlan: LeavePlan? = null,
 ) {
+    /** LEAVE_FOR_STOP: the next bus that can still be caught and hasn't been alerted yet (earliest ETA). */
+    val nextLeaveBus: BusView?
+        get() = buses.filter { it.leaveStatus == LeaveStatus.WAIT || it.leaveStatus == LeaveStatus.LEAVE_NOW }.minByOrNull { it.eta!! }
+
     val isActive: Boolean get() = phase == WatchPhase.RUNNING
 }

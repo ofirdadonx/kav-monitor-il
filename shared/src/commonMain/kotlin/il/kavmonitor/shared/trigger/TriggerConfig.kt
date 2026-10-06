@@ -32,10 +32,26 @@ data class TriggerConfig(
     val arriveEtaMaxDistanceMeters: Double = 1000.0,
     /** Bus dropped off the stop's list while its last ETA was within this window → it reached/passed the stop. */
     val passedEtaWindow: Duration = 3.minutes,
+
+    // ---- time to leave ----
+    /** A bus whose leave time is more than this in the past can no longer be caught (shown as such, never alerted). */
+    val leaveGrace: Duration = 1.minutes,
+    /** After a "leave now" alert, another bus is alerted only if at least this much later (no back-to-back spam). */
+    val leaveMinAlertGap: Duration = 3.minutes,
 ) {
     companion object {
         val Default = TriggerConfig()
         const val DEFAULT_DURATION_MINUTES = 60
         const val MAX_DURATION_MINUTES = 120
+
+        /** Straight line → walking path (streets aren't straight). */
+        const val WALK_DETOUR_FACTOR = 1.3
+        /** Walking speed, meters per minute (≈ 4.8 km/h). */
+        const val WALK_SPEED_M_PER_MIN = 80.0
+        /** Extra minutes on top of the walk. */
+        const val LEAVE_BUFFER_MINUTES = 1
+        /** Walk time used when there's no location (user can change it). */
+        const val DEFAULT_WALK_MINUTES = 5
+        const val MAX_WALK_MINUTES = 60
     }
 }
