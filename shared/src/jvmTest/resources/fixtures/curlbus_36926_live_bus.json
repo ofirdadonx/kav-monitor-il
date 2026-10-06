@@ -1,0 +1,353 @@
+{
+    "errors": null,
+    "timestamp": "2026-10-06T09:58:44+03:00",
+    "visits": {
+        "36926": [
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:58:13+03:00",
+                "stop_code": "36926",
+                "line_id": "25580",
+                "route_id": "25580",
+                "direction_id": "1",
+                "line_name": "21",
+                "operator_id": "3",
+                "destination_id": "36265",
+                "vehicle_ref": "23435002",
+                "eta": "2026-10-06 10:01:00+03:00",
+                "trip_id": "37473389_061026",
+                "status": null,
+                "departed": "2026-10-06 09:40:00+03:00",
+                "location": {
+                    "lat": "31.959339",
+                    "lon": "34.823704"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36265",
+                            "name": {
+                                "AR": "يوسف تومي لبيد/طريق ههتسلخة",
+                                "EN": "Yosef Tommy Lapid/HaHatzlaha Road",
+                                "HE": "יוסף טומי לפיד/דרך ההצלחה"
+                            },
+                            "address": {
+                                "street": "יוסף טומי לפיד",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.974203,
+                                "lon": 34.750745
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:58:11+03:00",
+                "stop_code": "36926",
+                "line_id": "37121",
+                "route_id": "37121",
+                "direction_id": "1",
+                "line_name": "194",
+                "operator_id": "3",
+                "destination_id": "36053",
+                "vehicle_ref": "23401702",
+                "eta": "2026-10-06 10:09:00+03:00",
+                "trip_id": "585301543_061026",
+                "status": null,
+                "departed": "2026-10-06 09:32:00+03:00",
+                "location": {
+                    "lat": "32.00491",
+                    "lon": "34.826717"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36053",
+                            "name": {
+                                "AR": "محطة قطار هَريشونيم",
+                                "EN": "HaRishonim Railway Station",
+                                "HE": "ת. רכבת הראשונים"
+                            },
+                            "address": {
+                                "street": "",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.949155,
+                                "lon": 34.803799
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:57:54+03:00",
+                "stop_code": "36926",
+                "line_id": "25581",
+                "route_id": "25581",
+                "direction_id": "2",
+                "line_name": "21",
+                "operator_id": "3",
+                "destination_id": "36053",
+                "vehicle_ref": "23350702",
+                "eta": "2026-10-06 10:17:00+03:00",
+                "trip_id": "37003246_061026",
+                "status": null,
+                "departed": "2026-10-06 09:00:00+03:00",
+                "location": {
+                    "lat": "31.963177",
+                    "lon": "34.803131"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36053",
+                            "name": {
+                                "AR": "محطة قطار هَريشونيم",
+                                "EN": "HaRishonim Railway Station",
+                                "HE": "ת. רכבת הראשונים"
+                            },
+                            "address": {
+                                "street": "",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.949155,
+                                "lon": 34.803799
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:55:00+03:00",
+                "stop_code": "36926",
+                "line_id": "25580",
+                "route_id": "25580",
+                "direction_id": "1",
+                "line_name": "21",
+                "operator_id": "3",
+                "destination_id": "36265",
+                "vehicle_ref": "23436202",
+                "eta": "2026-10-06 10:18:00+03:00",
+                "trip_id": "37003498_061026",
+                "status": null,
+                "departed": "2026-10-06 10:00:00+03:00",
+                "location": {
+                    "lat": "31.949097",
+                    "lon": "34.803665"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36265",
+                            "name": {
+                                "AR": "يوسف تومي لبيد/طريق ههتسلخة",
+                                "EN": "Yosef Tommy Lapid/HaHatzlaha Road",
+                                "HE": "יוסף טומי לפיד/דרך ההצלחה"
+                            },
+                            "address": {
+                                "street": "יוסף טומי לפיד",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.974203,
+                                "lon": 34.750745
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:57:43+03:00",
+                "stop_code": "36926",
+                "line_id": "38931",
+                "route_id": "38931",
+                "direction_id": "3",
+                "line_name": "100",
+                "operator_id": "3",
+                "destination_id": "36265",
+                "vehicle_ref": "23390102",
+                "eta": "2026-10-06 10:19:00+03:00",
+                "trip_id": "585517444_061026",
+                "status": null,
+                "departed": "2026-10-06 09:12:00+03:00",
+                "location": {
+                    "lat": "31.962126",
+                    "lon": "34.810207"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36265",
+                            "name": {
+                                "AR": "يوسف تومي لبيد/طريق ههتسلخة",
+                                "EN": "Yosef Tommy Lapid/HaHatzlaha Road",
+                                "HE": "יוסף טומי לפיד/דרך ההצלחה"
+                            },
+                            "address": {
+                                "street": "יוסף טומי לפיד",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.974203,
+                                "lon": 34.750745
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            },
+            {
+                "producer": "SIRI",
+                "timestamp": "2026-10-06 09:58:11+03:00",
+                "stop_code": "36926",
+                "line_id": "38931",
+                "route_id": "38931",
+                "direction_id": "3",
+                "line_name": "100",
+                "operator_id": "3",
+                "destination_id": "36265",
+                "vehicle_ref": "23389402",
+                "eta": "2026-10-06 10:22:00+03:00",
+                "trip_id": "585517445_061026",
+                "status": null,
+                "departed": "2026-10-06 09:24:00+03:00",
+                "location": {
+                    "lat": "31.961851",
+                    "lon": "34.803551"
+                },
+                "static_info": {
+                    "route": {
+                        "destination": {
+                            "code": "36265",
+                            "name": {
+                                "AR": "يوسف تومي لبيد/طريق ههتسلخة",
+                                "EN": "Yosef Tommy Lapid/HaHatzlaha Road",
+                                "HE": "יוסף טומי לפיד/דרך ההצלחה"
+                            },
+                            "address": {
+                                "street": "יוסף טומי לפיד",
+                                "city": "Rishon LeTsiyon",
+                                "platform": "",
+                                "floor": "",
+                                "city_multilingual": {
+                                    "HE": "ראשון לציון",
+                                    "EN": "Rishon LeTsiyon"
+                                }
+                            },
+                            "location": {
+                                "lat": 31.974203,
+                                "lon": 34.750745
+                            }
+                        },
+                        "agency": {
+                            "name": {
+                                "HE": "אגד",
+                                "EN": "Egged"
+                            },
+                            "url": "http://www.egged.co.il"
+                        },
+                        "headsign": null
+                    }
+                }
+            }
+        ]
+    },
+    "stop_info": {
+        "name": {
+            "AR": "شلومو لڤي/بوابة يافا",
+            "EN": "Shlomo Levy/Yafo Gate",
+            "HE": "שלמה לוי/שער יפו"
+        },
+        "address": {
+            "street": "שלמה לוי",
+            "city": "Rishon LeTsiyon",
+            "platform": "",
+            "floor": "",
+            "city_multilingual": {
+                "HE": "ראשון לציון",
+                "EN": "Rishon LeTsiyon"
+            }
+        },
+        "location": {
+            "lat": 31.962154,
+            "lon": 34.827882
+        }
+    }
+}

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">מעקב קו</string>
+
+    <!-- Home -->
+    <string name="home_title">מעקב קו</string>
+    <string name="home_new_watch">מעקב חדש</string>
+    <string name="home_recents">אחרונים</string>
+    <string name="home_no_recents">אין עדיין מעקבים אחרונים. התחילו מעקב חדש.</string>
+    <string name="home_active_watch">מעקב פעיל</string>
+    <string name="home_open_watch">פתח</string>
+    <string name="recent_remove">הסר</string>
+
+    <!-- Line/trigger descriptions -->
+    <string name="line_label">קו %1$s</string>
+    <string name="line_with_operator">קו %1$s · %2$s</string>
+    <string name="trigger_departs_short">יציאה מ%1$s</string>
+    <string name="trigger_arrives_short">הגעה ל%1$s</string>
+    <string name="duration_minutes">%1$d דק׳</string>
+
+    <!-- New watch -->
+    <string name="new_watch_title">מעקב חדש</string>
+    <string name="line_number_hint">מספר קו</string>
+    <string name="search">חפש</string>
+    <string name="loading">טוען…</string>
+    <string name="choose_direction">בחרו כיוון</string>
+    <string name="no_directions">לא נמצאו כיוונים לקו %1$s היום</string>
+    <string name="direction_route">%1$s ← %2$s</string>
+    <string name="trigger_title">מתי להתריע?</string>
+    <string name="trigger_departs_origin">כשהאוטובוס יוצא מתחנת המוצא</string>
+    <string name="trigger_arrives_at_stop">כשהאוטובוס מגיע לתחנה שאבחר</string>
+    <string name="choose_stop">בחרו תחנה</string>
+    <string name="stop_item">%1$d. %2$s</string>
+    <string name="stop_code">תחנה %1$s</string>
+    <string name="stops_source_previous">מסלול לפי לוח זמנים מ-%1$s (נתוני היום טרם נטענו)</string>
+    <string name="stops_source_siri">מסלול לפי נסיעות קודמות (SIRI)</string>
+    <string name="duration_title">משך המעקב</string>
+    <string name="start_watch">התחל מעקב</string>
+    <string name="error_prefix">שגיאה: %1$s</string>
+    <string name="retry">נסה שוב</string>
+    <string name="back">חזרה</string>
+
+    <!-- Watch screen -->
+    <string name="watch_title">מעקב</string>
+    <string name="watch_stop">עצור מעקב</string>
+    <string name="watch_status_running">פעיל עד %1$s</string>
+    <string name="watch_status_timed_out">המעקב הסתיים (הזמן עבר)</string>
+    <string name="watch_status_stopped">המעקב נעצר</string>
+    <string name="watch_last_update">עדכון אחרון: %1$s</string>
+    <string name="watch_no_update_yet">ממתין לעדכון ראשון…</string>
+    <string name="watch_buses_seen">אוטובוסים שנראו: %1$d</string>
+    <string name="watch_alerts">התראות: %1$d</string>
+    <string name="watch_error">שגיאת רשת: %1$s (ממשיך לנסות)</string>
+    <string name="watch_no_buses">אין כרגע אוטובוסים של הקו ברשימת התחנה</string>
+    <string name="watch_buses_header">אוטובוסים בתחנה %1$s</string>
+    <string name="bus_vehicle">רכב %1$s</string>
+    <string name="bus_eta">הגעה משוערת %1$s (בעוד %2$d דק׳)</string>
+    <string name="bus_eta_now">הגעה משוערת %1$s (עכשיו)</string>
+    <string name="bus_departure">יציאה מתוכננת מהמוצא %1$s</string>
+    <string name="bus_live">GPS חי · %1$s</string>
+    <string name="bus_not_live">ללא GPS (טרם יצא?)</string>
+    <string name="bus_distance">%1$d מ׳ מהתחנה</string>
+    <string name="bus_updated_ago">עודכן לפני %1$s</string>
+    <string name="bus_alerted">✓ התריע</string>
+    <string name="ago_seconds">%1$d שנ׳</string>
+    <string name="ago_minutes">%1$d דק׳</string>
+    <string name="ago_hours">%1$d שע׳</string>
+    <string name="unknown">—</string>
+    <string name="new_watch_again">מעקב חדש</string>
+    <string name="restart_watch">התחל שוב</string>
+</resources>
