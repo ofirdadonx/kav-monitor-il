@@ -1,0 +1,25 @@
+line 194 (37121), recorded full-route answer 2026-10-06 19:34:47, user stop #13 36926 שלמה לוי/שער יפו
+first bus at the user's stop in 13 min; hero walk minutes: 6, 11, 13, 73
+heroes:
+HeroModel(tone=PLENTY, label=צא בעוד, big=7 דק׳, sub=קו 194 · שלמה לוי/שער יפו · האוטובוס בעוד 13 דק׳ (19:48))
+HeroModel(tone=GET_READY, label=צא בעוד, big=2 דק׳, sub=קו 194 · שלמה לוי/שער יפו · האוטובוס בעוד 13 דק׳ (19:48))
+HeroModel(tone=LEAVE_NOW, label=null, big=צא עכשיו, sub=קו 194 · שלמה לוי/שער יפו · האוטובוס בעוד 13 דק׳ (19:48))
+HeroModel(tone=NONE, label=null, big=אין אוטובוס שאפשר להספיק, sub=קו 194 · שלמה לוי/שער יפו · הבא בעוד 13 דק׳ — לא תספיק (73 דק׳ הליכה))
+
+diagram:
+Stop(index=0, name=רכבת תל אביב- סבידור/…, isUser=false, isOrigin=true, isDestination=false, busesAt=[DiagramBus(key=585301561_061026, vehicle=23400502, etaToUserMinutes=55, freshness=SCHEDULED, notStarted=true, etaEstimated=true)])
+Between(afterIndex=0, buses=[DiagramBus(key=585301560_061026, vehicle=23401502, etaToUserMinutes=33, freshness=FRESH, notStarted=false, etaEstimated=true)])
+Stop(index=1, name=ארלוזורוב/…, isUser=false, isOrigin=false, isDestination=false, busesAt=[])
+Collapsed(count=6)
+Stop(index=8, name=הרכבת/סלומון, isUser=false, isOrigin=false, isDestination=false, busesAt=[])
+Between(afterIndex=8, buses=[DiagramBus(key=585301559_061026, vehicle=23401402, etaToUserMinutes=13, freshness=FRESH, notStarted=false, etaEstimated=false)])
+Stop(index=9, name=מסעף בית דגן, isUser=false, isOrigin=false, isDestination=false, busesAt=[])
+Collapsed(count=2)
+Stop(index=12, name=שלמה לוי/שער יפו, isUser=true, isOrigin=false, isDestination=false, busesAt=[])
+Collapsed(count=14)
+Stop(index=27, name=רכבת הראשונים, isUser=false, isOrigin=false, isDestination=true, busesAt=[])
+
+rows:
+BusRowModel(key=585301559_061026, vehicle=23401402, etaMinutes=13, etaEstimated=false, progress=0.48296025, freshness=FRESH, where=לפני מסעף בית דגן, scheduledStart=19:02, lastUpdate=19:33:53, ageSeconds=54, distanceToUserMeters=6703.683839714822)
+BusRowModel(key=585301560_061026, vehicle=23401502, etaMinutes=33, etaEstimated=true, progress=0.0057143136, freshness=FRESH, where=לפני ארלוזורוב/…, scheduledStart=19:32, lastUpdate=19:33:23, ageSeconds=84, distanceToUserMeters=18878.227864544246)
+BusRowModel(key=585301561_061026, vehicle=23400502, etaMinutes=55, etaEstimated=true, progress=0.0, freshness=SCHEDULED, where=טרם יצא מהמוצא, scheduledStart=20:02, lastUpdate=null, ageSeconds=null, distanceToUserMeters=19024.0)
