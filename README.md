@@ -4,13 +4,71 @@ Personal Android app: pick an Israeli bus line + direction, and get a loud notif
 **leaves its origin stop**, **reaches a stop you choose**, or when it's **time to leave** to catch it at your stop. Each watch is started on demand and runs for a limited
 time (default 60 min). The last 5 watch configurations are kept as one-tap "recents".
 
-Status: **v0.4** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone. v0.3, v0.3.1 and v0.4 were built
-and verified on Linux only (unit tests, Robolectric/Roborazzi UI tests, live API runs). They have not been run on a
-device or emulator, so real GPS fixes, the real permission dialog, osmdroid map tiles and the notification action on a
-real phone are untested.
-Raw evidence: `docs/curlbus-poll-log-2026-10-06.txt` (poll log), `docs/live-smoke-*.txt` (smoke runs),
-`docs/evidence/` (v0.2 live route source measurements, v0.3 Stride geo probe and "time to leave" live run, v0.4
-walking-route measurements and the live broken-stop fallback run at 25141).
+Status: **v0.5** (beta). v0.1 and v0.2-beta were confirmed working on the user's phone, and the user was happy with
+v0.4-beta. v0.3 through v0.5 were built and verified on Linux only: unit tests, Robolectric/Roborazzi UI tests and live
+API runs. None of them has run on a device or emulator, so these are untested on a real phone:
+* real GPS fixes;
+* the real permission dialog;
+* osmdroid map tiles;
+* the notification actions.
+
+Raw evidence:
+* `docs/curlbus-poll-log-2026-10-06.txt`: the poll log;
+* `docs/live-smoke-*.txt`: smoke runs;
+* `docs/evidence/`:
+  * v0.2 live route source measurements;
+  * v0.3 Stride geo probe and "time to leave" live run;
+  * v0.4 walking-route measurements and the live broken-stop fallback run at 25141;
+  * v0.5 multi-stop measurements (`multistop-2026-10-06.md`).
+
+### What's new in v0.5
+
+* **One curlbus request per refresh** for the live route view, the map and follow-a-bus. curlbus serves up to 30 stops
+  in one `/<a>+<b>+…` request, so all of the route's working stops are fetched at once, and buses are aggregated over
+  all of them:
+  * position between adjacent stops;
+  * next stop;
+  * an ETA at every stop ahead. The follow-bus ETA comes straight from this.
+
+  Routes with more than 30 stops use 2 requests (even chunks).
+  * Measured: **1.6–2.3 s, 341–375 KB JSON = 21–23 KB gzip** per request for the 24 working stops of 194.
+  * Requests never overlap. A tick that comes due while a request is still in flight is skipped. The 60 s cadence and
+    the no-burst rule are unchanged. The multi-stop timeout is 30 s.
+* **Broken stops: bisect once.** One broken stop makes curlbus answer HTTP 500 for the whole request (≈1 s). The app
+  then bisects:
+  * the halves that answer are kept, so the refresh loses no data;
+  * a stop that fails in its own single-stop request is broken;
+  * an inferred culprit is confirmed with one single-stop request, and a transient 500 marks nothing;
+  * the culprit goes into the persistent broken-stop cache (TTL 6 h) and is left out from then on.
+
+  For 194: 18 requests once (live: 5.9 s, finding 20876, 20725, 25141, 27117), then 1 per refresh.
+* **Watch service:** when the target stop is broken, the target's stand-in neighbours are polled in **one** multi-stop
+  request (was 2). Adding the next 1–2 stops to the watch was evaluated and **not adopted**: a bus is listed at every
+  stop ahead, so a downstream listing can't tell "passed" from "about to arrive". The evidence is in
+  `docs/evidence/multistop-2026-10-06.md`.
+* **Home: "תחנות קרובות".** Shown only if the location permission is already granted; otherwise a quiet "enable location" row.
+  * The 3–5 nearest stops come from curlbus `/nearby`: radius 300 m, then 500 / 1000 m if nothing is found.
+  * The answer is cached per ~100 m cell.
+  * Each stop shows its Hebrew name and the straight-line distance. The top stop also gets the routed walking time,
+    using the same OSRM router and cache as before.
+* **Stop screen** (tap a nearby stop): live arrivals of all lines at that stop.
+  * Each arrival shows the line, destination, operator, minutes, and live GPS vs scheduled.
+  * One `/<stop>` request every 60 s, only while the screen is shown and the app is visible.
+  * Tapping a line opens the new-watch flow prefilled with that line, its direction (curlbus `line_id` = Stride
+    `line_ref`) and "arrives at this stop". If the stop is the line's origin, it uses "departs" instead.
+* Screenshots: `docs/screenshots/v0.5/`. UI mockups for v0.6 (hero, line diagram, compact rows; not wired into the app):
+  `docs/screenshots/mockup-v0.6/`.
+
+**Requests per screen (per 60 s refresh), v0.4 → v0.5**
+
+| screen | v0.4 | v0.5 |
+|---|---|---|
+| live route view / map | 5–7 single-stop requests (7 on the first refresh, then 5) | **1** (+ a one-time bisect when a new broken stop shows up: 18 for 194's four) |
+| follow a bus | route view + up to 1 extra stop | **0 extra** (ETA from the same answer) |
+| watch, target answers | 1 | 1 |
+| watch, target broken (stand-ins) | 2 in parallel | **1** |
+| stop screen (new) | – | 1 |
+| home nearby (new) | – | 1 per ~100 m cell (up to 3 if the radius has to grow), cached |
 
 ### What's new in v0.4
 
@@ -269,11 +327,26 @@ UI is Hebrew-only and forced RTL (`LayoutDirection.Rtl`), `android:supportsRtl="
     Fallback 1: same `line_ref` on up to 7 previous days (`/gtfs_routes/list?line_refs=…`). Fallback 2 (the
     prototype's approach): SIRI ride history (`/siri_rides`, `/siri_ride_stops`) + `/gtfs_stops` for names.
     The UI shows a small note when a previous day's schedule is used.
-* **curlbus** (`https://curlbus.app/<stop_code>`, `Accept: application/json`), realtime only. One call per poll.
-  Visits are filtered by `line_id` (== Stride `line_ref`), which separates Egged 194 (37121) from Kavim's 194.
-  Requests send `User-Agent: kav-monitor-app/0.3`.
+* **curlbus** (`https://curlbus.app`, `Accept: application/json`, gzip), realtime only. Source: github.com/elad661/curlbus.
+  Requests send `User-Agent: kav-monitor-app/0.5`.
 
-### Live route view: data source (measured 2026-10-06, Egged 194 / line_ref 37121)
+  Visits are filtered by `line_id` (== Stride `line_ref`), which separates Egged 194 (37121) from Kavim's 194. Each
+  visit's `static_info` gives the destination and operator names that the stop screen shows.
+
+  Endpoints used:
+  * `/<stop>`: one stop, all lines. Used by the watch and the stop screen.
+  * `/<a>+<b>+…` (v0.5): up to 30 stops in one request; more than 30 → HTTP 400. One answer per refresh for the route
+    view, map and follow-a-bus; also the watch's stand-ins. One broken stop → HTTP 500 for the whole request →
+    bisect + broken-stop cache (see "What's new in v0.5").
+  * `/nearby?lat&lon&radius`: home "תחנות קרובות". Answers `[{code, name{HE,EN,AR}, distance, location}]`, unsorted.
+    Allowed radii are 5, 10, and 50–1000 m in steps of 50.
+  * Not used: `/operators/...`. It answered HTTP 500 for 194.
+
+### Live route view: data source (v0.2–v0.4 design, measured 2026-10-06, Egged 194 / line_ref 37121)
+
+**v0.5 replaced the sampling below with one multi-stop request for all working stops** (see "What's new in v0.5"
+and `docs/evidence/multistop-2026-10-06.md`). The sampled mode is still in the code (`RouteLiveFetcher` without
+`multi`), and the coverage test compares the two.
 
 Full numbers: `docs/evidence/live_route_source_measurements.md`, live run: `docs/evidence/route_live_smoke_194.txt`.
 

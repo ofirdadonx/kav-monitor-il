@@ -3,4 +3,4 @@ nearby requests: [lat=32.0746&lon=34.7916&radius=300]
 top stop walk: WalkRoute(distanceMeters=221.6, durationSeconds=179.4, routed=true)
 stop 21472: 84 arrivals, 62 live; first: [148→ת.מרכזית תל אביב קומה 6/הורדה מטרופולין live=true, 63→מסוף כרמלית/הורדה דן live=true, 176→מחלף חולון מזרח למזרח סופרבוס live=true, 65→מסוף כרמלית/הורדה דן live=false, 650→ת.מרכזית תל אביב קומה 6/הורדה מטרופולין live=true]
 stop requests after ~7 s on the screen: 3
-route view: first refresh 20 requests (bisect), then 3 in ~7 s: [24, 24, 24] stops each
+route view: 20 requests up to screenshot 03 (one-time bisect of 18 + 1 per refresh since), then 3 in ~7 s: [24, 24, 24] stops each

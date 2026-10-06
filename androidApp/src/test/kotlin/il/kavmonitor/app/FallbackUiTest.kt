@@ -122,7 +122,10 @@ class FallbackUiTest {
             shot("debug_picker"); throw e
         }
         shot("01_stop_picker")
-        // Show the detection from scratch (the live route view may already have flagged 25141 by now).
+        // Show the detection from scratch: the live route view's one-time bisect flags 25141 (wait for it so it can't
+        // re-flag it after the clear when the machine is slow), then forget it.
+        // (the snapshot is published after the bisect has stored its culprits; the tracker may flag 25141 earlier, mid-bisect)
+        if (!TestApp.LIVE) compose.waitReal(timeout) { c.routeLive.state?.snapshot?.failedStops?.any { it.code == "25141" } == true }
         app.graph.brokenStops.clear("25141")
         beforeStart()
         click("התחל מעקב")

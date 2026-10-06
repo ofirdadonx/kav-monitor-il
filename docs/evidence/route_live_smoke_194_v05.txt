@@ -1,0 +1,102 @@
+# routeLiveSmoke 2026-10-06 19:41 (bisect before the 'failed alone = broken' change: 22 requests)
+
+== line_ref=37121 ת. רכבת תל אביב- סבידור/רציפים A, תל אביב יפו → ת. רכבת הראשונים, ראשון לציון: 28 stops, length 25510 m, source GTFS_PREVIOUS_DAY 2026-10-05
+  GET curlbus/<28 stops: 20001+20762+21705+20876+21472+20725+20750+25141+27117+31492+33737+33117+36926+33504+36073+32922+37327+32919+36005+32877+32939+35542+35561+35286+35284+35283+36813+36053> FAILED 836 ms StopServerException
+  GET curlbus/<14 stops: 20001+20762+21705+20876+21472+20725+20750+25141+27117+31492+33737+33117+36926+33504> FAILED 908 ms StopServerException
+  GET curlbus/<7 stops: 20001+20762+21705+20876+21472+20725+20750> FAILED 332 ms StopServerException
+  GET curlbus/<3 stops> ok 378 ms, 54 visits
+  GET curlbus/<2 stops: 20876+21472> FAILED 147 ms StopServerException
+  GET curlbus/20876 FAILED 154 ms StopServerException: curlbus HTTP 500 for stop 20876
+  GET curlbus/20876 FAILED 144 ms StopServerException: curlbus HTTP 500 for stop 20876
+  GET curlbus/21472 ok 454 ms, 94 visits
+  GET curlbus/<2 stops: 20725+20750> FAILED 151 ms StopServerException
+  GET curlbus/20725 FAILED 146 ms StopServerException: curlbus HTTP 500 for stop 20725
+  GET curlbus/20725 FAILED 145 ms StopServerException: curlbus HTTP 500 for stop 20725
+  GET curlbus/20750 ok 255 ms, 37 visits
+  GET curlbus/<7 stops: 25141+27117+31492+33737+33117+36926+33504> FAILED 384 ms StopServerException
+  GET curlbus/<3 stops: 25141+27117+31492> FAILED 148 ms StopServerException
+  GET curlbus/25141 FAILED 147 ms StopServerException: curlbus HTTP 500 for stop 25141
+  GET curlbus/25141 FAILED 149 ms StopServerException: curlbus HTTP 500 for stop 25141
+  GET curlbus/<2 stops: 27117+31492> FAILED 152 ms StopServerException
+  GET curlbus/27117 FAILED 152 ms StopServerException: curlbus HTTP 500 for stop 27117
+  GET curlbus/27117 FAILED 156 ms StopServerException: curlbus HTTP 500 for stop 27117
+  GET curlbus/31492 ok 164 ms, 8 visits
+  GET curlbus/<4 stops> ok 293 ms, 30 visits
+  GET curlbus/<14 stops> ok 813 ms, 89 visits
+kav-monitor: curlbus: stop 20876 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 20725 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 25141 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 27117 fails every multi-stop request → left out (broken cache) 
+FULL refresh 1 at 19:41:23: 22 requests in 6637 ms, stops answered=24, broken=[20876, 20725, 25141, 27117], active=2, notStarted=1, noGps=0
+   ACTIVE veh=23401402 sched=19:02 pct=65 next=שלמה לוי/שער יפו gpsAge=15s etas=16 stops
+   ACTIVE veh=23401502 sched=19:32 pct=6 next=דרך מנחם בגין/החשמונאים gpsAge=27s etas=10 stops
+   NOT_STARTED veh=23400502 sched=20:02 pct=null next=null gpsAge=nulls etas=4 stops
+  GET curlbus/27117 FAILED 175 ms StopServerException: curlbus HTTP 500 for stop 27117
+  GET curlbus/33117 ok 182 ms, 6 visits
+  GET curlbus/20001 ok 235 ms, 23 visits
+  GET curlbus/25141 FAILED 149 ms StopServerException: curlbus HTTP 500 for stop 25141
+  GET curlbus/32939 ok 259 ms, 6 visits
+  GET curlbus/36053 ok 264 ms, 21 visits
+  GET curlbus/31492 ok 246 ms, 8 visits
+SAMPLED (same minute): 7 requests, active=2, notStarted=1, noGps=0; missing vs full: []
+  GET curlbus/<24 stops> ok 1759 ms, 316 visits
+FULL refresh 2 at 19:42:25: 1 requests in 1761 ms, stops answered=24, broken=[20876, 20725, 25141, 27117], active=2, notStarted=1, noGps=0
+   ACTIVE veh=23401402 sched=19:02 pct=67 next=שלמה לוי/שער יפו gpsAge=35s etas=16 stops
+   ACTIVE veh=23401502 sched=19:32 pct=6 next=דרך מנחם בגין/החשמונאים gpsAge=35s etas=9 stops
+   NOT_STARTED veh=23400502 sched=20:02 pct=null next=null gpsAge=nulls etas=4 stops
+  GET curlbus/33117 ok 182 ms, 6 visits
+  GET curlbus/31492 ok 189 ms, 8 visits
+  GET curlbus/20001 ok 235 ms, 23 visits
+  GET curlbus/32939 ok 154 ms, 6 visits
+  GET curlbus/36053 ok 294 ms, 22 visits
+SAMPLED (same minute): 5 requests, active=2, notStarted=1, noGps=0; missing vs full: []
+
+# routeLiveSmoke 2026-10-06 19:44 (v0.5 bisect: 18 requests)
+
+== line_ref=37121 ת. רכבת תל אביב- סבידור/רציפים A, תל אביב יפו → ת. רכבת הראשונים, ראשון לציון: 28 stops, length 25510 m, source GTFS_PREVIOUS_DAY 2026-10-05
+  GET curlbus/<28 stops: 20001+20762+21705+20876+21472+20725+20750+25141+27117+31492+33737+33117+36926+33504+36073+32922+37327+32919+36005+32877+32939+35542+35561+35286+35284+35283+36813+36053> FAILED 1313 ms StopServerException
+  GET curlbus/<14 stops: 20001+20762+21705+20876+21472+20725+20750+25141+27117+31492+33737+33117+36926+33504> FAILED 398 ms StopServerException
+  GET curlbus/<7 stops: 20001+20762+21705+20876+21472+20725+20750> FAILED 380 ms StopServerException
+  GET curlbus/<3 stops> ok 333 ms, 53 visits
+  GET curlbus/<2 stops: 20876+21472> FAILED 230 ms StopServerException
+  GET curlbus/20876 FAILED 212 ms StopServerException: curlbus HTTP 500 for stop 20876
+  GET curlbus/21472 ok 552 ms, 95 visits
+  GET curlbus/<2 stops: 20725+20750> FAILED 150 ms StopServerException
+  GET curlbus/20725 FAILED 144 ms StopServerException: curlbus HTTP 500 for stop 20725
+  GET curlbus/20750 ok 288 ms, 39 visits
+  GET curlbus/<7 stops: 25141+27117+31492+33737+33117+36926+33504> FAILED 145 ms StopServerException
+  GET curlbus/<3 stops: 25141+27117+31492> FAILED 144 ms StopServerException
+  GET curlbus/25141 FAILED 149 ms StopServerException: curlbus HTTP 500 for stop 25141
+  GET curlbus/<2 stops: 27117+31492> FAILED 160 ms StopServerException
+  GET curlbus/27117 FAILED 179 ms StopServerException: curlbus HTTP 500 for stop 27117
+  GET curlbus/31492 ok 231 ms, 9 visits
+  GET curlbus/<4 stops> ok 356 ms, 35 visits
+  GET curlbus/<14 stops> ok 468 ms, 92 visits
+kav-monitor: curlbus: stop 20876 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 20725 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 25141 fails every multi-stop request → left out (broken cache) 
+kav-monitor: curlbus: stop 27117 fails every multi-stop request → left out (broken cache) 
+FULL refresh 1 at 19:44:42: 18 requests in 5874 ms, stops answered=24, broken=[20876, 20725, 25141, 27117], active=2, notStarted=1, noGps=0
+   ACTIVE veh=23401402 sched=19:02 pct=72 next=שלמה לוי/שער יפו gpsAge=69s etas=16 stops
+   ACTIVE veh=23401502 sched=19:32 pct=8 next=דרך מנחם בגין/החשמונאים gpsAge=17s etas=10 stops
+   NOT_STARTED veh=23400502 sched=20:02 pct=null next=null gpsAge=nulls etas=5 stops
+  GET curlbus/27117 FAILED 181 ms StopServerException: curlbus HTTP 500 for stop 27117
+  GET curlbus/33117 ok 201 ms, 7 visits
+  GET curlbus/20001 ok 263 ms, 22 visits
+  GET curlbus/25141 FAILED 146 ms StopServerException: curlbus HTTP 500 for stop 25141
+  GET curlbus/32939 ok 256 ms, 6 visits
+  GET curlbus/36053 ok 261 ms, 24 visits
+  GET curlbus/31492 ok 267 ms, 9 visits
+SAMPLED (same minute): 7 requests, active=2, notStarted=1, noGps=0; missing vs full: []
+  GET curlbus/<24 stops> ok 1922 ms, 323 visits
+FULL refresh 2 at 19:45:45: 1 requests in 1924 ms, stops answered=24, broken=[20876, 20725, 25141, 27117], active=2, notStarted=1, noGps=0
+   ACTIVE veh=23401402 sched=19:02 pct=73 next=שלמה לוי/שער יפו gpsAge=20s etas=15 stops
+   ACTIVE veh=23401502 sched=19:32 pct=9 next=ת.רק"ל קרליבך/דרך מנחם בגין A gpsAge=22s etas=11 stops
+   NOT_STARTED veh=23400502 sched=20:02 pct=null next=null gpsAge=nulls etas=5 stops
+  GET curlbus/31492 ok 240 ms, 9 visits
+  GET curlbus/33117 ok 240 ms, 7 visits
+  GET curlbus/20001 ok 336 ms, 26 visits
+  GET curlbus/32939 ok 184 ms, 6 visits
+  GET curlbus/36053 ok 250 ms, 22 visits
+SAMPLED (same minute): 5 requests, active=2, notStarted=1, noGps=0; missing vs full: []
+EXIT 0

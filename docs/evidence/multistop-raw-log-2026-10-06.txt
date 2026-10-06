@@ -1,0 +1,30 @@
+193053 ALL28 status=500 t=0.95s wire=55 body=55 enc=None
+193054 /nearby?lat=32.0835&lon=34.7990&radius=300 status=200 t=0.55s wire=1183 body=15813 n=35
+193055 /nearby?lat=32.0745&lon=34.7915&radius=300 status=200 t=0.58s wire=660 body=3953 n=11
+193055 /nearby?lat=31.9625&lon=34.8283&radius=300 status=200 t=0.46s wire=990 body=990 n=3
+193056 /nearby?lat=31.9900&lon=34.7700&radius=300 status=200 t=0.44s wire=479 body=1785 n=5
+193056 /nearby?lat=31.9900&lon=34.7700&radius=1000 status=200 t=0.62s wire=3132 body=21881 n=61
+193057 FULL24 status=200 t=1.83s wire=20630 body=341967 enc=gzip
+193057 single 20001 status=200 t=0.69s wire=3210 body=25520
+193057 single 31492 status=200 t=0.59s wire=1615 body=10736
+193059 stop21472 status=200 t=0.88s body=105334
+193147 FULL24 status=200 t=1.98s wire=21126 body=341130 enc=gzip
+193147 single 20001 status=200 t=0.78s wire=3219 body=25520
+193147 single 31492 status=200 t=0.65s wire=1585 body=9547
+193149 stop21472 status=200 t=0.78s body=105593
+193247 FULL24 status=200 t=1.76s wire=20755 body=340869 enc=gzip
+193347 FULL24 status=200 t=2.07s wire=21033 body=345090 enc=gzip
+193447 FULL24 status=200 t=1.86s wire=21255 body=345743 enc=gzip
+193447 single 20001 status=200 t=0.75s wire=3451 body=27830
+193447 single 31492 status=200 t=0.79s wire=1589 body=9548
+193547 FULL24 status=200 t=1.78s wire=21418 body=348044 enc=gzip
+193647 FULL24 status=200 t=1.61s wire=20877 body=350103 enc=gzip
+193747 FULL24 status=200 t=1.59s wire=21384 body=349946 enc=gzip
+193747 single 20001 status=200 t=0.78s wire=3264 body=25490
+193747 single 31492 status=200 t=0.94s wire=1558 body=9612
+193847 FULL24 status=200 t=2.16s wire=21549 body=358218 enc=gzip
+193947 FULL24 status=200 t=1.64s wire=22077 body=371213 enc=gzip
+194047 FULL24 status=200 t=2.33s wire=23028 body=374862 enc=gzip
+194047 single 20001 status=200 t=0.77s wire=3569 body=26308
+194047 single 31492 status=200 t=0.86s wire=1395 body=8550
+done

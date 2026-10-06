@@ -288,6 +288,11 @@ class NearestLeaveUiTest {
         assertEquals("no location listener after leaving the screen", 0, listeners)
         compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         compose.passTime(1_000)
+        // v0.5: home shows "תחנות קרובות" now that the permission is granted → location runs while home is shown…
+        assertEquals("home's nearby section uses location while shown", 1, listeners)
+        // …and never in the background
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.waitReal(timeout) { !c.location.isUpdating }
         assertEquals(0, listeners)
         note("denied path ok; starts=${c.location.starts}")
     }
