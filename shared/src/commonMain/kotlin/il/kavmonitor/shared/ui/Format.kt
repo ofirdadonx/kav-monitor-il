@@ -10,6 +10,13 @@ import il.kavmonitor.shared.resources.ago_seconds
 import il.kavmonitor.shared.resources.line_with_operator
 import il.kavmonitor.shared.resources.trigger_arrives_short
 import il.kavmonitor.shared.resources.trigger_departs_short
+import il.kavmonitor.shared.resources.reason_at_stop_eta
+import il.kavmonitor.shared.resources.reason_at_stop_gps
+import il.kavmonitor.shared.resources.reason_dropped_at_stop
+import il.kavmonitor.shared.resources.reason_left_dropped
+import il.kavmonitor.shared.resources.reason_left_gps
+import il.kavmonitor.shared.resources.reason_left_scheduled
+import il.kavmonitor.shared.trigger.TriggerReason
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration
 
@@ -31,3 +38,15 @@ fun agoText(d: Duration): String {
         else -> stringResource(Res.string.ago_hours, (s / 3600).toInt())
     }
 }
+
+@Composable
+fun reasonText(r: TriggerReason): String = stringResource(
+    when (r) {
+        TriggerReason.LEFT_ORIGIN_DROPPED -> Res.string.reason_left_dropped
+        TriggerReason.LEFT_ORIGIN_GPS -> Res.string.reason_left_gps
+        TriggerReason.LEFT_ORIGIN_SCHEDULED -> Res.string.reason_left_scheduled
+        TriggerReason.AT_STOP_GPS -> Res.string.reason_at_stop_gps
+        TriggerReason.AT_STOP_ETA -> Res.string.reason_at_stop_eta
+        TriggerReason.DROPPED_AT_STOP -> Res.string.reason_dropped_at_stop
+    },
+)

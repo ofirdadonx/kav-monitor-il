@@ -95,11 +95,10 @@ object Notifications {
 
     fun alert(context: Context, spec: WatchSpec, event: TriggerEvent) {
         val title = when (event.reason) {
-            TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS ->
+            TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS, TriggerReason.LEFT_ORIGIN_SCHEDULED ->
                 context.getString(R.string.alert_departed_title, spec.lineName, spec.origin.name)
-            TriggerReason.AT_STOP_GPS, TriggerReason.AT_STOP_ETA ->
+            TriggerReason.AT_STOP_GPS, TriggerReason.AT_STOP_ETA, TriggerReason.DROPPED_AT_STOP ->
                 context.getString(R.string.alert_arrived_title, spec.lineName, spec.stop.name)
-            TriggerReason.PASSED_STOP -> context.getString(R.string.alert_passed_title, spec.lineName, spec.stop.name)
         }
         val body = context.getString(
             R.string.alert_body, event.vehicleRef ?: "—", event.scheduledDeparture?.israelClock() ?: "—",

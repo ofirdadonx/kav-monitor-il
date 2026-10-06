@@ -38,6 +38,8 @@ import il.kavmonitor.shared.resources.new_watch_again
 import il.kavmonitor.shared.resources.restart_watch
 import il.kavmonitor.shared.resources.unknown
 import il.kavmonitor.shared.resources.watch_alerts
+import il.kavmonitor.shared.resources.watch_alerts_header
+import il.kavmonitor.shared.resources.watch_alert_item
 import il.kavmonitor.shared.resources.watch_buses_header
 import il.kavmonitor.shared.resources.watch_buses_seen
 import il.kavmonitor.shared.resources.watch_error
@@ -108,6 +110,18 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(state.buses, key = { it.key }) { BusCard(it, now) }
+            if (state.alerts.isNotEmpty()) {
+                item { Text(stringResource(Res.string.watch_alerts_header), style = MaterialTheme.typography.titleMedium) }
+                items(state.alerts.reversed(), key = { "alert_" + it.key }) { a ->
+                    Text(
+                        stringResource(
+                            Res.string.watch_alert_item, a.at.israelClock(withSeconds = true),
+                            a.vehicleRef ?: stringResource(Res.string.unknown), reasonText(a.reason),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
     }
 }

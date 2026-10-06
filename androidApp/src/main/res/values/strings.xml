@@ -20,7 +20,6 @@
     <!-- Alert notification -->
     <string name="alert_departed_title">קו %1$s יצא מ%2$s!</string>
     <string name="alert_arrived_title">קו %1$s מגיע ל%2$s!</string>
-    <string name="alert_passed_title">קו %1$s עבר ב%2$s</string>
     <string name="alert_body">רכב %1$s · יציאה מתוכננת %2$s · זמן לצאת לתחנה</string>
 
     <!-- Finished -->

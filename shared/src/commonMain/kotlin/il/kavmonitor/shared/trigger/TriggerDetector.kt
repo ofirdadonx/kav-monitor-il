@@ -11,12 +11,20 @@ enum class TriggerReason {
     LEFT_ORIGIN_DROPPED,
     /** Bus is still listed at the origin but its fresh GPS fix is already away from the origin stop. */
     LEFT_ORIGIN_GPS,
+    /**
+     * Trip dropped off the origin list well before its scheduled departure (driver activated the trip early);
+     * fired when the scheduled departure time is reached.
+     */
+    LEFT_ORIGIN_SCHEDULED,
     /** Fresh GPS fix within the radius of the chosen stop. */
     AT_STOP_GPS,
     /** GPS-tracked bus with ETA ≤ threshold. */
     AT_STOP_ETA,
-    /** Bus dropped off the chosen stop's list while its ETA was imminent (passed between polls). */
-    PASSED_STOP,
+    /**
+     * Bus dropped off the chosen stop's upcoming-visits list. Observed live: SIRI removes a visit when the bus
+     * is at/near the stop (≈ within 100 m / 1 min), so for a live trip this means "arrived now or just passed".
+     */
+    DROPPED_AT_STOP,
 }
 
 data class TriggerEvent(
@@ -41,6 +49,8 @@ class TriggerDetector(
     private class Tracked(var last: LiveVisit, var lastSeenAt: Instant)
 
     private val tracked = mutableMapOf<String, Tracked>()
+    /** DEPARTS_ORIGIN: trips that dropped off the origin list too early; fire at their scheduled departure. */
+    private val pendingEarly = mutableMapOf<String, LiveVisit>()
     private val fired = mutableSetOf<String>()
     private val seenKeys = mutableSetOf<String>()
 
@@ -58,6 +68,7 @@ class TriggerDetector(
 
         for (v in visits) {
             seenKeys += v.key
+            pendingEarly.remove(v.key) // listed again: back to normal tracking
             if (v.key !in fired) {
                 val ev = when (spec.trigger) {
                     TriggerType.DEPARTS_ORIGIN -> checkDepartedWhileListed(now, v)
@@ -79,6 +90,13 @@ class TriggerDetector(
                 }
                 if (ev != null) { fired += key; events += ev }
             }
+        }
+
+        // Early-activated trips whose scheduled departure time has now been reached.
+        val due = pendingEarly.values.filter { v -> v.originDepartureTime.let { it == null || now >= it } }
+        for (v in due) {
+            pendingEarly.remove(v.key)
+            if (fired.add(v.key)) events += event(v, TriggerReason.LEFT_ORIGIN_SCHEDULED, now, null)
         }
         return events
     }
@@ -103,20 +121,28 @@ class TriggerDetector(
         return if (d >= config.departDistanceMeters) event(v, TriggerReason.LEFT_ORIGIN_GPS, now, d) else null
     }
 
-    private fun checkDroppedFromOrigin(now: Instant, last: LiveVisit): TriggerEvent? =
-        if (pastDepartureWindow(now, last)) event(last, TriggerReason.LEFT_ORIGIN_DROPPED, now, null) else null
+    private fun checkDroppedFromOrigin(now: Instant, last: LiveVisit): TriggerEvent? {
+        if (pastDepartureWindow(now, last)) return event(last, TriggerReason.LEFT_ORIGIN_DROPPED, now, null)
+        pendingEarly[last.key] = last
+        return null
+    }
 
     private fun checkArrivingWhileListed(now: Instant, v: LiveVisit): TriggerEvent? {
         if (!freshGps(now, v)) return null
         val d = distanceTo(v, spec.stop.lat, spec.stop.lon)
         if (d != null && d <= config.arriveRadiusMeters) return event(v, TriggerReason.AT_STOP_GPS, now, d)
         val eta = v.eta ?: return null
-        return if (eta - now <= config.arriveEtaThreshold) event(v, TriggerReason.AT_STOP_ETA, now, d) else null
+        val notFar = d == null || d <= config.arriveEtaMaxDistanceMeters
+        return if (eta - now <= config.arriveEtaThreshold && notFar) event(v, TriggerReason.AT_STOP_ETA, now, d) else null
     }
 
+    /**
+     * A trip that was already live (had GPS) only leaves a stop's list after passing it. A trip that never had GPS
+     * counts only if its ETA was imminent when last seen (otherwise it is more likely a cancellation/re-plan).
+     */
     private fun checkDroppedFromStop(now: Instant, last: LiveVisit, lastSeenAt: Instant): TriggerEvent? {
-        val eta = last.eta ?: return null
-        return if (eta - lastSeenAt <= config.passedEtaWindow) event(last, TriggerReason.PASSED_STOP, now, null) else null
+        val imminent = last.eta?.let { it - lastSeenAt <= config.passedEtaWindow } ?: false
+        return if (last.hasGps || imminent) event(last, TriggerReason.DROPPED_AT_STOP, now, null) else null
     }
 
     private fun event(v: LiveVisit, reason: TriggerReason, now: Instant, d: Double?) = TriggerEvent(

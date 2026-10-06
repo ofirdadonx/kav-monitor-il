@@ -66,6 +66,14 @@
     <string name="ago_minutes">%1$d דק׳</string>
     <string name="ago_hours">%1$d שע׳</string>
     <string name="unknown">—</string>
+    <string name="watch_alerts_header">התראות שנשלחו</string>
+    <string name="watch_alert_item">%1$s · רכב %2$s · %3$s</string>
+    <string name="reason_left_dropped">יצא מתחנת המוצא</string>
+    <string name="reason_left_gps">יצא (לפי GPS)</string>
+    <string name="reason_left_scheduled">הנסיעה פעילה והגיעה שעת היציאה</string>
+    <string name="reason_at_stop_gps">ליד התחנה (GPS)</string>
+    <string name="reason_at_stop_eta">מגיע בעוד פחות מדקה</string>
+    <string name="reason_dropped_at_stop">הגיע לתחנה</string>
     <string name="new_watch_again">מעקב חדש</string>
     <string name="restart_watch">התחל שוב</string>
 </resources>

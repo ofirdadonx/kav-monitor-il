@@ -22,9 +22,14 @@ data class TriggerConfig(
 
     // ---- arrives at stop ----
     /** Fresh GPS within this radius of the chosen stop → "at the stop". */
-    val arriveRadiusMeters: Double = 200.0,
+    val arriveRadiusMeters: Double = 150.0,
     /** Live (GPS-tracked) bus whose ETA to the stop is at most this → "arriving". */
     val arriveEtaThreshold: Duration = 1.minutes,
+    /**
+     * ...but only if the bus is not obviously far away: SIRI ETAs are minute-granular and sometimes slide
+     * (seen live: Azrieli ETA 10:09→10:10→10:11 while the bus crawled ~900 m away).
+     */
+    val arriveEtaMaxDistanceMeters: Double = 1000.0,
     /** Bus dropped off the stop's list while its last ETA was within this window → it reached/passed the stop. */
     val passedEtaWindow: Duration = 3.minutes,
 ) {
