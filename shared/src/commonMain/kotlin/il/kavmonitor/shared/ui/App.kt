@@ -33,6 +33,7 @@ fun App(controller: AppController) {
                         Screen.NEW_WATCH -> NewWatchScreen(controller)
                         Screen.WATCH -> WatchScreen(controller, watch)
                         Screen.MAP -> RouteMapScreen(controller)
+                        Screen.STOP -> StopScreen(controller)
                     }
                     BusActionsSheet(controller)
                 }

@@ -11,9 +11,6 @@ import il.kavmonitor.shared.data.LiveDataSource
 import il.kavmonitor.shared.data.StopServerException
 import il.kavmonitor.shared.model.LiveVisit
 import il.kavmonitor.shared.model.RouteStop
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.trigger.TriggerConfig
 import il.kavmonitor.shared.trigger.TriggerDetector
@@ -41,8 +38,7 @@ class WatchEngine(
 
     /** Stand-in stops that answered 5xx [BROKEN_AFTER_SERVER_ERRORS] times in a row during this run. */
     private val brokenThisRun = mutableSetOf<String>()
-    private val standInErrors = mutableMapOf<String, Int>()
-    private fun isBroken(code: String) = code in brokenThisRun || brokenStops?.isBroken(code) == true
+    private fun isBroken(code: String) = code in brokenThisRun || brokenStops?.isBroken(code) == true || standIns.isBroken(code)
 
     suspend fun run(
         spec: WatchSpec,
@@ -151,38 +147,22 @@ class WatchEngine(
         return state
     }
 
-    /** Polls the stand-in stop(s) (≤ 2 calls, in parallel). Fails only if every stand-in failed. */
+    /** Stand-in polls: one multi-stop request for both neighbours; a 5xx is bisected once (see [MultiStopFetcher]). */
+    private val standIns = il.kavmonitor.shared.data.MultiStopFetcher(live, brokenStops, clock)
+
+    /**
+     * Polls the stand-in stop(s) in ONE request (v0.5; ≤ 2 parallel calls before). If curlbus fails it (any stop broken),
+     * the culprit is found by bisect (≤ 2 more requests, once), remembered as broken, and the stand-in that answered is
+     * still used for this poll. Fails only if no stand-in answered.
+     */
     private suspend fun pollFallback(spec: WatchSpec, fb: FallbackPlan, now: kotlin.time.Instant): Polled {
-        val results = coroutineScope {
-            fb.polled.map { stop ->
-                async {
-                    try {
-                        Result.success(live.stopVisits(stop.code))
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Result.failure(e)
-                    }
-                }
-            }.awaitAll()
+        val codes = fb.polled.map { it.code }
+        val r = standIns.fetch(codes) // throws if nothing answered
+        r.newlyBroken.forEach { code -> brokenThisRun += code; ErrorLog.w("stand-in stop $code failed (5xx)") }
+        val byCode = fb.polled.associate { stop ->
+            stop.code to (if (stop.code in r.answered) Result.success(r.snapshot.slice(stop.code)) else Result.failure(IllegalStateException("no answer")))
         }
-        val byCode = fb.polled.zip(results).associate { (stop, r) -> stop.code to r }
-        fb.polled.zip(results).forEach { (stop, r) ->
-            val e = r.exceptionOrNull()
-            if (e == null) {
-                standInErrors.remove(stop.code)
-            } else {
-                ErrorLog.w("stand-in stop ${stop.code} failed", e)
-                if (e is StopServerException) {
-                    // a stand-in is replaced after its first 5xx in this run (another neighbour is as good);
-                    // it is remembered across runs only after repeated 5xx (BrokenStopTracker / here)
-                    brokenThisRun += stop.code
-                    val n = (standInErrors[stop.code] ?: 0) + 1
-                    standInErrors[stop.code] = n
-                    if (n >= BROKEN_AFTER_SERVER_ERRORS) brokenStops?.mark(stop.code)
-                }
-            }
-        }
+        val results = fb.polled.map { byCode.getValue(it.code) }
         if (results.all { it.isFailure }) throw results.first().exceptionOrNull()!!
         val snaps = results.mapNotNull { it.getOrNull() }
         val reliable = results.all { it.isSuccess } && snaps.all { it.sourceErrors == null } && snaps.any { it.allVisits.isNotEmpty() }

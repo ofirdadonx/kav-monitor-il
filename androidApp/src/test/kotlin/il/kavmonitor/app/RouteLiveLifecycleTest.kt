@@ -62,7 +62,7 @@ class RouteLiveLifecycleTest {
         click("חפש", sub = false)
         compose.waitReal(15_000) { has("ת. רכבת תל אביב- סבידור/רציפים A") }
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
-        compose.waitReal(15_000) { has("תחנות נדגמו") }
+        compose.waitReal(15_000) { has("נתונים מ-") }
         val c = app.graph.controller
 
         // refreshing every 400 ms while shown

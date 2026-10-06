@@ -121,7 +121,7 @@ class FollowBusUiTest {
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
-        waitFor("תחנות נדגמו")
+        waitFor("נתונים מ-")
         setLocation(NEAR_20750)
 
         // 1. long-press the card of vehicle 7692269 → the actions sheet
@@ -136,13 +136,15 @@ class FollowBusUiTest {
         note("sheet: ${c.busActions}")
         shot("08_bus_actions_sheet")
 
-        // 2. follow → prominent card; the route view now also samples the stop nearest the user (20750) for its ETA
-        val beforeFollow = TestHttp.snapshot().count { it.host == ROUTE && it.path == "/20750" }
+        // 2. follow → prominent card; the ETA at the stop nearest the user (20750) comes from the same full-route request
+        val beforeFollow = TestHttp.count(ROUTE)
         click("עקוב אחרי האוטובוס הזה")
         compose.waitReal(timeout) { c.followed != null && c.busActions == null }
         assertEquals("7692269", c.followed?.vehicleRef)
         waitCard("לפי curlbus: מגיע ל")
-        assertTrue("20750 sampled after following", TestHttp.snapshot().count { it.host == ROUTE && it.path == "/20750" } > beforeFollow)
+        // v0.5: the ETA at the user's stop (20750) comes from the same full-route request: following adds no request
+        assertTrue("full-route request covers 20750", TestHttp.snapshot().last { it.host == ROUTE }.path.split('+').contains("20750"))
+        note("route requests while following: ${TestHttp.count(ROUTE) - beforeFollow} (1 per refresh)")
         scrollToTag("follow-card")
         val card = texts("follow-card")
         note("card: $card")

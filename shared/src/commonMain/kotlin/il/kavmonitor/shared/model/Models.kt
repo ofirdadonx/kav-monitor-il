@@ -62,6 +62,9 @@ data class LiveVisit(
     val recordedAt: Instant?,
     val lat: Double?,
     val lon: Double?,
+    /** curlbus static_info: the trip's destination stop name (Hebrew) and agency, for the stop screen. */
+    val destinationName: String? = null,
+    val agencyName: String? = null,
 ) {
     val hasGps: Boolean get() = lat != null && lon != null
     /** Stable key for a bus on a trip. Trip id first: vehicles can be swapped on a trip. */
@@ -77,6 +80,19 @@ data class StopSnapshot(
     val allVisits: List<LiveVisit>,
     val sourceErrors: String? = null,
 ) {
+    /** The part of a multi-stop answer that belongs to [code]. */
+    fun slice(code: String): StopSnapshot = StopSnapshot(code, fetchedAt, serverTime, allVisits.filter { it.stopCode == code }, sourceErrors)
+
+    companion object {
+        fun merge(code: String, parts: List<StopSnapshot>): StopSnapshot = StopSnapshot(
+            stopCode = code,
+            fetchedAt = parts.maxOf { it.fetchedAt },
+            serverTime = parts.firstNotNullOfOrNull { it.serverTime },
+            allVisits = parts.flatMap { it.allVisits },
+            sourceErrors = parts.firstNotNullOfOrNull { it.sourceErrors },
+        )
+    }
+
     fun forLine(lineRef: Int, lineName: String? = null, operatorRef: Int? = null): List<LiveVisit> =
         allVisits.filter { v ->
             if (v.lineRef != null) v.lineRef == lineRef

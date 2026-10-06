@@ -72,9 +72,8 @@ data class FollowInfo(
 )
 
 /**
- * Follow one vehicle using the route view's sampled-stops refresh (no polling of its own): the route view request is
- * targeted at [FollowInfo.refStop], so curlbus already returns that stop's ETA for the bus (at most one extra stop
- * in the sample, only when that stop is not sampled anyway).
+ * Follow one vehicle using the route view's refresh (no polling of its own). v0.5: the route view fetches every working
+ * stop in one request, so curlbus's ETA of the bus at the user's stop comes straight from that answer.
  */
 object FollowBus {
     /** City-bus average including stops, for the fallback estimate only (labelled "הערכה"). */
@@ -109,7 +108,7 @@ object FollowBus {
         val gpsAge = bus.gpsAge(now)
         val dist = if (bus.hasGps && userLat != null && userLon != null) Geo.distanceMeters(bus.lat!!, bus.lon!!, userLat, userLon) else null
         if (!bus.hasGps || bus.status == RouteBusStatus.NOT_STARTED || bus.status == RouteBusStatus.NO_GPS) {
-            val eta = if (refStop != null && snap.targetStopCode == refStop.code) bus.etaAtTarget else null
+            val eta = curlbusEtaAt(snap, bus, refStop)
             return FollowInfo(FollowStatus.NO_GPS, bus, refStop, eta, eta != null, eta?.let { minutesUntil(it, now) }, null, null, bus.nextStop, percent, snap.fetchedAt)
         }
         val withDist = RouteGeometry.withDistances(stops)
@@ -119,7 +118,7 @@ object FollowBus {
         if (passed) {
             return FollowInfo(FollowStatus.PASSED_STOP, bus, refStop, null, false, null, dist, gpsAge, bus.nextStop, percent, snap.fetchedAt)
         }
-        val curlbusEta = if (refStop != null && snap.targetStopCode == refStop.code) bus.etaAtTarget else null
+        val curlbusEta = curlbusEtaAt(snap, bus, refStop)
         val eta = curlbusEta ?: if (refAlong != null && along != null && bus.recordedAt != null) {
             bus.recordedAt + ((refAlong - along).coerceAtLeast(0.0) / AVG_SPEED_MPS).seconds
         } else null
@@ -127,6 +126,12 @@ object FollowBus {
             FollowStatus.TRACKING, bus, refStop, eta, curlbusEta != null, eta?.let { minutesUntil(it, now) },
             dist, gpsAge, bus.nextStop, percent, snap.fetchedAt,
         )
+    }
+
+    /** curlbus's own ETA of [bus] at [refStop]: from the full-route answer (every stop), or the route view's target. */
+    fun curlbusEtaAt(snap: RouteLiveSnapshot, bus: RouteBus, refStop: RouteStop?): Instant? {
+        refStop ?: return null
+        return bus.etaByStop[refStop.code] ?: if (snap.targetStopCode == refStop.code) bus.etaAtTarget else null
     }
 
     /** Whole minutes until [t], rounded up, never negative. */

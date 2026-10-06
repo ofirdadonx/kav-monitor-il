@@ -128,7 +128,7 @@ class AppUiTest {
         // 3. Egged Savidor → Rishon: live route view
         click("ת. רכבת תל אביב- סבידור/רציפים A", substring = false)
         waitForText("על הקו עכשיו")
-        waitForText("תחנות נדגמו") // first live refresh done
+        waitForText("נתונים מ-") // first live refresh done
         if (!TestApp.LIVE) waitForText("3 אוטובוסים פעילים")
         shot("03_route_live_view")
         scrollTo("נתונים חיים: SIRI")
@@ -170,7 +170,7 @@ class AppUiTest {
         if (!TestApp.LIVE) waitForText("רכב 7628169")
         shot("08_watch_screen")
         scrollTo("על הקו עכשיו")
-        compose.waitReal(timeout) { has("תחנות נדגמו") }
+        compose.waitReal(timeout) { has("נתונים מ-") }
         scrollTo("נתונים חיים: SIRI")
         shot("09_watch_screen_route_view")
         val ongoing = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_STATUS }

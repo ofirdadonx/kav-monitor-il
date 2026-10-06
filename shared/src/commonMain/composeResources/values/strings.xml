@@ -139,7 +139,7 @@
     <string name="route_live_active">%1$d אוטובוסים פעילים</string>
     <string name="route_live_active_one">אוטובוס פעיל אחד</string>
     <string name="route_live_none">אין כרגע אוטובוסים פעילים בכיוון הזה</string>
-    <string name="route_live_updated">עודכן %1$s · %2$d תחנות נדגמו</string>
+    <string name="route_live_updated">עודכן %1$s · נתונים מ-%2$d תחנות</string>
     <string name="route_live_loading">טוען נתונים חיים…</string>
     <string name="route_live_error">שגיאה בנתונים החיים: %1$s</string>
     <string name="route_live_failed_stops">%1$d תחנות לא ענו</string>

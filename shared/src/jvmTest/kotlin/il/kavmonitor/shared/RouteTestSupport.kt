@@ -4,6 +4,7 @@ import il.kavmonitor.shared.data.ApiJson
 import il.kavmonitor.shared.data.CurlbusParser
 import il.kavmonitor.shared.data.GtfsRideStopDto
 import il.kavmonitor.shared.data.LiveDataSource
+import il.kavmonitor.shared.data.StopServerException
 import il.kavmonitor.shared.data.StrideStaticDataSource
 import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.model.StopSnapshot
@@ -24,7 +25,19 @@ class ScanReplayLive(private val fetchedAt: Instant = ilTime("14:52:20")) : Live
     override suspend fun stopVisits(stopCode: String): StopSnapshot {
         calls += stopCode
         val res = javaClass.getResource("/fixtures/route194_1451/$stopCode.json")
-            ?: throw IllegalStateException("HTTP 500 for stop $stopCode")
+            ?: throw StopServerException(stopCode, 500)
         return CurlbusParser.parse(res.readText(), stopCode, fetchedAt)
+    }
+
+    /** Like curlbus: one request for all the stops, HTTP 500 for the whole request if any stop is broken. */
+    override suspend fun multiStopVisits(stopCodes: List<String>): StopSnapshot {
+        if (stopCodes.size == 1) return stopVisits(stopCodes.single())
+        val joined = stopCodes.joinToString("+")
+        calls += joined
+        val parts = stopCodes.map { code ->
+            val res = javaClass.getResource("/fixtures/route194_1451/$code.json") ?: throw StopServerException(joined, 500)
+            CurlbusParser.parse(res.readText(), code, fetchedAt)
+        }
+        return StopSnapshot.merge(joined, parts)
     }
 }

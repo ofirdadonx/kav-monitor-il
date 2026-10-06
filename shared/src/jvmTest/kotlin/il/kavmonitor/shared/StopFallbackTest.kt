@@ -127,6 +127,17 @@ class StopFallbackTest {
             val other = LiveVisit(stopCode, "18", 9999, 5, "x", "other", null, null, null, null, null)
             return StopSnapshot(stopCode, now, now, visits(stopCode, now) + other)
         }
+
+        /** Like curlbus: one request, 500 for the whole request if any stop is broken. */
+        override suspend fun multiStopVisits(stopCodes: List<String>): StopSnapshot {
+            if (stopCodes.size == 1) return stopVisits(stopCodes.single())
+            val now = clock.now()
+            val joined = stopCodes.joinToString("+")
+            calls += now to joined
+            if (stopCodes.any { it in setOf("25141", "27117", "20001x") }) throw StopServerException(joined, 500)
+            val other = LiveVisit(stopCodes[0], "18", 9999, 5, "x", "other", null, null, null, null, null)
+            return StopSnapshot(joined, now, now, stopCodes.flatMap { visits(it, now) } + other)
+        }
     }
 
     @Test
@@ -148,17 +159,18 @@ class StopFallbackTest {
         val events = mutableListOf<TriggerEvent>()
         engine.run(spec194(TriggerType.ARRIVES_AT_STOP, stop("25141"), minutes = 10), { states += it }, { e, _ -> events += e })
 
-        // 2 direct attempts 5 s apart, then only the two stand-ins per poll
+        // 2 direct attempts 5 s apart, then the two stand-ins in ONE request per poll
         assertEquals(listOf("25141", "25141"), live.calls.take(2).map { it.second })
         assertEquals(5.seconds, live.calls[1].first - live.calls[0].first)
         assertTrue(store.isBroken("25141"), "marked")
         val after = live.calls.drop(2)
-        // fresh store: 27117 (next downstream) is tried once, answers 500, and is replaced by 31492 5 s later
-        assertTrue(after.all { it.second in setOf("20750", "27117", "31492") }, "only stand-ins: $after")
-        assertEquals(1, after.count { it.second == "27117" })
-        val swap = after.indexOfFirst { it.second == "31492" }
-        assertEquals(5.seconds, after[swap].first - after.first { it.second == "27117" }.first)
-        assertTrue(after.groupBy { it.first }.values.all { it.size <= 2 }, "≤ 2 calls per poll")
+        // fresh store: 20750+27117 → 500 → bisect once: 20750 alone answers (used for this poll), 27117 alone fails again
+        // (confirmed broken, remembered); 5 s later the next pair 20750+31492, then one request per poll
+        assertEquals(listOf("20750+27117", "20750", "27117", "20750+31492"), after.take(4).map { it.second })
+        assertEquals(5.seconds, after[3].first - after[0].first)
+        assertTrue(store.isBroken("27117"))
+        assertTrue(after.drop(3).all { it.second == "20750+31492" }, "one request per poll: ${after.drop(3)}")
+        assertTrue(after.drop(3).groupBy { it.first }.values.all { it.size == 1 })
         val firstErr = states.first { it.lastError != null }.lastError!!
         assertEquals(ErrorKind.SERVER, firstErr.kind)
         val fb = states.last().fallback

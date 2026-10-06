@@ -38,7 +38,7 @@ import il.kavmonitor.shared.route.RouteLiveController
 import kotlin.time.Clock
 import kotlin.time.Duration
 
-enum class Screen { HOME, NEW_WATCH, WATCH, MAP }
+enum class Screen { HOME, NEW_WATCH, WATCH, MAP, STOP }
 
 sealed interface Loadable<out T> {
     data object Idle : Loadable<Nothing>
@@ -64,6 +64,8 @@ class AppController(
     val brokenStops: il.kavmonitor.shared.data.BrokenStops = il.kavmonitor.shared.data.BrokenStops(null),
     /** Pedestrian routes to stops (OSRM foot by default; straight-line estimate when it can't answer). */
     val walkPlanner: WalkPlanner = WalkPlanner(NoWalkingRouter),
+    /** curlbus `/nearby` (home screen "תחנות קרובות"); null = section hidden. */
+    private val nearbySource: il.kavmonitor.shared.data.NearbySource? = null,
 ) {
     /** Loadable.Failed carries an [il.kavmonitor.shared.data.ErrorKind] name; the raw text only goes to the log. */
     private fun friendlyFailure(e: Exception): String {
@@ -79,13 +81,13 @@ class AppController(
     var screen by mutableStateOf(Screen.HOME); private set
 
     /** Live route view (foreground only; see [RouteLiveController]). */
-    val routeLive = RouteLiveController(live, scope, clock, routeLiveInterval)
+    val routeLive = RouteLiveController(live, scope, clock, routeLiveInterval, broken = brokenStops)
 
     /**
      * Full-screen map: its own refresher (same sampled-stops logic and [il.kavmonitor.shared.trigger.Polling.INTERVAL]),
      * attached only while the map screen is composed; closing the map detaches it, so it stops refreshing.
      */
-    val mapLive = RouteLiveController(live, scope, clock, routeLiveInterval)
+    val mapLive = RouteLiveController(live, scope, clock, routeLiveInterval, broken = brokenStops)
     var mapRequest by mutableStateOf<il.kavmonitor.shared.route.RouteLiveRequest?>(null); private set
     var mapTitle by mutableStateOf(""); private set
     private var mapReturn = Screen.HOME
@@ -140,11 +142,86 @@ class AppController(
         return info
     }
 
-    /** Stop the route view should be targeted at so curlbus returns the followed bus's ETA there (null = none needed). */
-    fun followTargetStop(lineRef: Int, stops: List<RouteStop>, preferredStop: RouteStop?): RouteStop? {
-        followed?.takeIf { it.lineRef == lineRef } ?: return null
-        val fix = location.fix
-        return il.kavmonitor.shared.follow.FollowBus.refStop(stops, preferredStop, fix?.lat, fix?.lon)
+
+    // ---- home: nearby stops (curlbus /nearby), cached per ~100 m cell ----
+    var nearby by mutableStateOf<Loadable<List<il.kavmonitor.shared.data.NearbyStop>>>(Loadable.Idle); private set
+    private val nearbyCache = mutableMapOf<String, List<il.kavmonitor.shared.data.NearbyStop>>()
+    private var nearbyKey: String? = null
+    private var nearbyJob: kotlinx.coroutines.Job? = null
+    /** /nearby requests made (tests / diagnostics). */
+    var nearbyRequests = 0; private set
+    val hasNearby: Boolean get() = nearbySource != null
+
+    /** Nearest stops for a fix: cache per ~100 m cell; radius 300 m, then 500 / 1000 m if nothing was found. */
+    fun loadNearby(lat: Double, lon: Double) {
+        val src = nearbySource ?: return
+        val key = il.kavmonitor.shared.data.NearbyStops.cacheKey(lat, lon)
+        if (key == nearbyKey && nearby !is Loadable.Failed) return
+        nearbyKey = key
+        nearbyCache[key]?.let { nearby = Loadable.Ready(it); return }
+        nearbyJob?.cancel()
+        nearby = Loadable.Loading
+        nearbyJob = scope.launch {
+            try {
+                var found = emptyList<il.kavmonitor.shared.data.NearbyStop>()
+                for (r in il.kavmonitor.shared.data.NearbyStops.EXPANDING_RADII) {
+                    nearbyRequests++
+                    found = src.nearby(lat, lon, r)
+                    if (found.isNotEmpty()) break
+                }
+                val top = found.take(NEARBY_MAX)
+                nearbyCache[key] = top
+                nearby = Loadable.Ready(top)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                nearby = Loadable.Failed(friendlyFailure(e))
+            }
+        }
+    }
+
+    // ---- stop screen: live arrivals of one stop (all lines) ----
+    val stopArrivals = il.kavmonitor.shared.stop.StopArrivalsController(live, scope, clock, routeLiveInterval)
+    var stopScreen by mutableStateOf<il.kavmonitor.shared.data.NearbyStop?>(null); private set
+    private var stopReturn = Screen.HOME
+
+    fun openStop(stop: il.kavmonitor.shared.data.NearbyStop) {
+        if (screen != Screen.STOP) stopReturn = screen
+        stopScreen = stop
+        screen = Screen.STOP
+    }
+
+    fun closeStop() { if (screen == Screen.STOP) screen = stopReturn }
+
+    /**
+     * Tapped a line on the stop screen: the new-watch flow for that line and direction (curlbus line_id = Stride
+     * line_ref), with "arrives at this stop" chosen (the origin itself → "departs").
+     */
+    fun watchFromStop(a: il.kavmonitor.shared.stop.StopArrival, stopCode: String) {
+        openNewWatch()
+        lineInput = a.lineName
+        job?.cancel()
+        directions = Loadable.Loading
+        job = scope.launch {
+            try {
+                val dirs = routes.directions(a.lineName)
+                directions = Loadable.Ready(dirs)
+                val d = dirs.firstOrNull { it.lineRef == a.lineRef } ?: return@launch
+                selectedDirection = d
+                stops = Loadable.Loading
+                val list = routes.stops(d)
+                directionStops[d.lineRef] = Loadable.Ready(list)
+                stops = Loadable.Ready(list)
+                val idx = list.stops.indexOfFirst { it.code == stopCode }
+                if (idx == 0) { trigger = TriggerType.DEPARTS_ORIGIN; targetStopCode = null }
+                else if (idx > 0) { trigger = TriggerType.ARRIVES_AT_STOP; targetStopCode = stopCode }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (directions is Loadable.Loading) directions = Loadable.Failed(friendlyFailure(e))
+                else stops = Loadable.Failed(friendlyFailure(e))
+            }
+        }
     }
 
     /** Stop lists per direction (line_ref), prefetched for the visible direction cards (stop counts, real end names). */
@@ -182,6 +259,7 @@ class AppController(
     fun setAppVisible(visible: Boolean) {
         routeLive.setAppVisible(visible)
         mapLive.setAppVisible(visible)
+        stopArrivals.setAppVisible(visible)
         location.setAppVisible(visible)
     }
 
@@ -239,6 +317,7 @@ class AppController(
         }
         Screen.WATCH -> { screen = Screen.HOME; true }
         Screen.MAP -> { closeMap(); true }
+        Screen.STOP -> { closeStop(); true }
     }
 
     fun searchLine() {
@@ -376,6 +455,7 @@ class AppController(
     }
 
     companion object {
+        const val NEARBY_MAX = 5
         const val PREFETCH_PARALLELISM = 3
     }
 

@@ -32,11 +32,16 @@ class RouteLiveController(
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.System,
     val interval: Duration = DEFAULT_INTERVAL,
+    /** Persistent broken-stop cache shared with the watch (full-route mode leaves those stops out). */
+    broken: il.kavmonitor.shared.data.BrokenStops? = null,
+    /** v0.5 default: one multi-stop request per refresh. false = v0.4 sampled single-stop calls. */
+    val fullRoute: Boolean = true,
 ) {
     var state by mutableStateOf<RouteLiveState?>(null); private set
 
+    private val multi = if (fullRoute) il.kavmonitor.shared.data.MultiStopFetcher(live, broken, clock) else null
     private var fetcher: RouteLiveFetcher? = null
-    private var runningFetcher: RouteLiveFetcher? = null
+    private var runningKey: Any? = null
     private var job: Job? = null
     private var tokens = 0
     private var attachedToken: Int? = null
@@ -44,16 +49,32 @@ class RouteLiveController(
 
     /** Number of completed refresh cycles (tests/diagnostics). */
     var refreshes = 0; private set
+    /** HTTP requests of the last refresh (tests/diagnostics). */
+    val lastRequests: Int get() = fetcher?.lastRequests ?: 0
+    /** A refresh is in flight right now (a tick that comes while one is in flight is skipped). */
+    var inFlight = false; private set
     val isRefreshing: Boolean get() = job?.isActive == true
+
+    /** Requests for the same line and stop list differ only by target: full-route mode reuses the data, no new request. */
+    private fun routeKey(r: RouteLiveRequest): Any = if (fullRoute) Pair(r.lineRef, r.stops.map { it.code }) else r
 
     fun attach(request: RouteLiveRequest): Int {
         val token = ++tokens
         attachedToken = token
-        if (fetcher?.request != request) {
-            val f = RouteLiveFetcher(live, request, clock)
-            fetcher = f
-            val keep = state?.takeIf { it.request.lineRef == request.lineRef }?.snapshot
-            state = RouteLiveState(request, f.sampleIndices.size, snapshot = keep)
+        val old = fetcher
+        if (old?.request != request) {
+            if (old != null && fullRoute && routeKey(old.request) == routeKey(request)) {
+                val f = old.retargeted(request)
+                fetcher = f
+                val prev = state
+                state = RouteLiveState(request, f.requestedStopCount,
+                    snapshot = prev?.snapshot?.let { f.rebuildLast(it.fetchedAt) ?: it }, loading = prev?.loading == true, error = prev?.error)
+            } else {
+                val f = RouteLiveFetcher(live, request, clock, multi = multi)
+                fetcher = f
+                val keep = state?.takeIf { it.request.lineRef == request.lineRef }?.snapshot
+                state = RouteLiveState(request, f.requestedStopCount, snapshot = keep)
+            }
         }
         reconcile()
         return token
@@ -75,37 +96,58 @@ class RouteLiveController(
         val f = fetcher
         val shouldRun = attachedToken != null && appVisible && f != null
         if (!shouldRun) {
-            job?.cancel(); job = null; runningFetcher = null
+            job?.cancel(); job = null; runningKey = null; inFlight = false
             state?.let { if (it.loading) state = it.copy(loading = false) }
             return
         }
-        if (job?.isActive == true && runningFetcher === f) return
+        val key = routeKey(f!!.request)
+        if (job?.isActive == true && runningKey == key) return // same route: the loop picks up the (re-targeted) fetcher
         job?.cancel()
-        runningFetcher = f
-        job = scope.launch { loop(f!!) }
+        inFlight = false
+        runningKey = key
+        job = scope.launch { loop() }
     }
 
-    private suspend fun loop(f: RouteLiveFetcher) {
+    /**
+     * Fixed 60 s ticks; requests never overlap: one refresh at a time, and a tick that comes while a (slow, up to 30 s)
+     * multi-stop request is still running is skipped rather than queued.
+     */
+    private suspend fun loop() {
+        val first = fetcher ?: return
         // Same line already fetched recently (screen re-entered, or only the target stop changed): don't burst.
-        val last = state?.takeIf { it.request.lineRef == f.request.lineRef }?.snapshot
+        val last = state?.takeIf { it.request.lineRef == first.request.lineRef }?.snapshot
         if (last != null) {
-            val gap = if (last.targetStopCode == f.request.targetStopCode) interval else MIN_GAP_ON_TARGET_CHANGE
+            val gap = if (fullRoute || last.targetStopCode == first.request.targetStopCode) interval else MIN_GAP_ON_TARGET_CHANGE
             val wait = gap - (clock.now() - last.fetchedAt)
             if (wait > Duration.ZERO) delay(wait)
         }
         while (scope.isActive) {
-            state = (state ?: RouteLiveState(f.request, f.sampleIndices.size)).copy(loading = true)
-            state = try {
-                val snap = f.refresh()
-                state!!.copy(snapshot = snap, loading = false, error = null)
+            val f = fetcher ?: return
+            val started = clock.now()
+            state = (state ?: RouteLiveState(f.request, f.requestedStopCount)).copy(loading = true)
+            inFlight = true
+            val result = try {
+                Result.success(f.refresh())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 il.kavmonitor.shared.data.ErrorLog.w("route view refresh failed", e)
-                state!!.copy(loading = false, error = il.kavmonitor.shared.data.FetchErrors.classify(e).kind.name)
+                Result.failure(e)
+            } finally {
+                inFlight = false
+            }
+            // the target may have changed while the request was in flight: rebuild for the current one
+            val cur = fetcher
+            val snap = result.getOrNull()?.let { s -> if (cur !== f && cur != null) { cur.adopt(f); cur.rebuildLast(s.fetchedAt) ?: s } else s }
+            state = (state ?: RouteLiveState(f.request, f.requestedStopCount)).let { st ->
+                if (snap != null) st.copy(snapshot = snap, loading = false, error = null, sampledStopCount = (cur ?: f).requestedStopCount)
+                else st.copy(loading = false, error = il.kavmonitor.shared.data.FetchErrors.classify(result.exceptionOrNull()!!).kind.name)
             }
             refreshes++
-            delay(interval)
+            val elapsed = clock.now() - started
+            var wait = interval - elapsed
+            while (wait <= Duration.ZERO) wait += interval // overran a tick: skip it
+            delay(wait)
         }
     }
 

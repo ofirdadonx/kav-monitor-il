@@ -40,6 +40,8 @@ class AppGraph(
     val routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
     /** Live source of the foreground route view (same backend as [live]; separate so tests can tell them apart). */
     val routeLiveSource: LiveDataSource = live,
+    /** curlbus `/nearby` for the home screen's nearby stops. */
+    val nearbySource: il.kavmonitor.shared.data.NearbySource? = live as? il.kavmonitor.shared.data.NearbySource,
     /** User location for the "nearest stop" sections (Android: LocationManager; tests: shadowed). */
     val locationProvider: LocationProvider = NoLocationProvider,
     /** Pedestrian routing: OSRM foot (keyless) by default, OpenRouteService when [orsApiKey] is set (never committed). */
@@ -60,6 +62,6 @@ class AppGraph(
     val recents = RecentsStore(settings)
     val location = LocationController(locationProvider, settings)
     val controller: AppController by lazy {
-        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops, walkPlanner = walkPlanner)
+        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops, walkPlanner = walkPlanner, nearbySource = nearbySource)
     }
 }

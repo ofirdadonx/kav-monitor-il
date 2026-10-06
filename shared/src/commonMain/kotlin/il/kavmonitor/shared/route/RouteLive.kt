@@ -63,6 +63,8 @@ data class RouteBus(
      * list when it goes live, ≈1 min before it pulls out (seen live), so this is approximate (± ~1 min).
      */
     val departedObservedAt: Instant? = null,
+    /** curlbus ETA at every fetched stop that still lists this bus (full-route mode: all working stops ahead). */
+    val etaByStop: Map<String, Instant> = emptyMap(),
 ) {
     val hasGps: Boolean get() = lat != null && lon != null
     val isActive: Boolean get() = status == RouteBusStatus.ACTIVE || status == RouteBusStatus.AT_ORIGIN
@@ -95,7 +97,17 @@ class RouteLiveFetcher(
     val request: RouteLiveRequest,
     private val clock: Clock = Clock.System,
     private val maxParallel: Int = 3,
+    /**
+     * v0.5: when set, every working stop of the route is fetched in ONE multi-stop request (≤ 30 stops per request) and
+     * buses are aggregated over all of them; known-broken stops are left out (found by bisect, see [MultiStopFetcher]).
+     * Null = the v0.2–v0.4 sampled single-stop mode (kept for the coverage comparison).
+     */
+    private val multi: il.kavmonitor.shared.data.MultiStopFetcher? = null,
 ) {
+    val fullRoute: Boolean get() = multi != null
+    /** HTTP requests made by the last [refresh]. */
+    var lastRequests = 0; private set
+    private var lastResults: List<SampleResult>? = null
     private val stops = request.stops
     private val targetIdx: Int? = request.targetStopCode?.let { c -> stops.indexOfFirst { it.code == c }.takeIf { it >= 0 } }
     val sampleIndices: List<Int> = (RouteSampling.sampleIndices(stops) + listOfNotNull(targetIdx)).distinct().sorted()
@@ -106,7 +118,52 @@ class RouteLiveFetcher(
 
     private class SampleResult(val base: Int, val used: Int?, val snapshot: StopSnapshot?)
 
-    suspend fun refresh(): RouteLiveSnapshot {
+    /** Stops a refresh asks for: all of them (full-route mode) or the samples. */
+    val requestedStopCount: Int get() = if (multi != null) stops.map { it.code }.distinct().count { !multi.isBroken(it) } else sampleIndices.size
+
+    suspend fun refresh(): RouteLiveSnapshot = if (multi != null) refreshFull(multi) else refreshSampled()
+
+    private suspend fun refreshFull(m: il.kavmonitor.shared.data.MultiStopFetcher): RouteLiveSnapshot {
+        val before = m.totalRequests
+        val r = try {
+            m.fetch(stops.map { it.code })
+        } finally {
+            lastRequests = m.totalRequests - before
+        }
+        val results = stops.indices.map { i ->
+            val code = stops[i].code
+            if (code in r.answered) SampleResult(i, i, r.snapshot.slice(code)) else SampleResult(i, null, null)
+        }
+        lastResults = results
+        return build(clock.now(), results)
+    }
+
+    /** Same buses for another target stop, from the last full-route answer (no request): the target only picks an ETA. */
+    fun retargeted(newRequest: RouteLiveRequest): RouteLiveFetcher {
+        require(multi != null && newRequest.lineRef == request.lineRef && newRequest.stops == request.stops)
+        val f = RouteLiveFetcher(live, newRequest, clock, maxParallel, multi)
+        f.lastSeenAtOrigin.putAll(lastSeenAtOrigin)
+        f.departedAt.putAll(departedAt)
+        f.lastResults = lastResults
+        return f
+    }
+
+    /** Takes over [other]'s last answer and observation memory (same route, other target; request finished meanwhile). */
+    fun adopt(other: RouteLiveFetcher) {
+        lastResults = other.lastResults
+        lastSeenAtOrigin.clear(); lastSeenAtOrigin.putAll(other.lastSeenAtOrigin)
+        departedAt.clear(); departedAt.putAll(other.departedAt)
+    }
+
+    /** Rebuilds the last answer (after [retargeted]); null if nothing was fetched yet. */
+    fun rebuildLast(at: Instant): RouteLiveSnapshot? = lastResults?.let { buildNoObserve(at, it) }
+
+    private fun buildNoObserve(at: Instant, results: List<SampleResult>): RouteLiveSnapshot {
+        val keepSeen = lastSeenAtOrigin.toMap(); val keepDeparted = departedAt.toMap()
+        return build(at, results).also { lastSeenAtOrigin.clear(); lastSeenAtOrigin.putAll(keepSeen); departedAt.clear(); departedAt.putAll(keepDeparted) }
+    }
+
+    private suspend fun refreshSampled(): RouteLiveSnapshot {
         val subs = substitute.toMap()
         val results = coroutineScope {
             val sem = Semaphore(maxParallel)
@@ -223,6 +280,7 @@ class RouteLiveFetcher(
             etaAtTarget = targetIdx?.let { t -> list.firstOrNull { it.first == t }?.second?.eta },
             etaAtDestination = list.firstOrNull { it.first == lastIdx }?.second?.eta,
             remainingMeters = if (position != null && total != null) (total - position.alongMeters).coerceAtLeast(0.0) else null,
+            etaByStop = list.mapNotNull { (i, v) -> v.eta?.let { stops[i].code to it } }.toMap(),
         )
     }
 

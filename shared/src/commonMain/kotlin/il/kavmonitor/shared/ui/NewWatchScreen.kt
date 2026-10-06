@@ -110,10 +110,8 @@ fun NewWatchScreen(c: AppController) {
 
     // Live route view: refreshes only while this screen shows a direction (detached on leave / direction change).
     if (selected != null && readyStops != null) {
-        val chosen = if (c.trigger != TriggerType.DEPARTS_ORIGIN) c.targetStopCode else null
-        // Following a bus with no target chosen: target the stop nearest the user so curlbus returns the followed
-        // bus's ETA there (at most one extra stop in the sample).
-        val target = chosen ?: c.followTargetStop(selected.lineRef, readyStops.stops, null)?.code
+        // v0.5: the route view fetches every working stop in one request; the target only selects which ETA to show
+        val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) c.targetStopCode else null
         DisposableEffect(selected.lineRef, readyStops, target) {
             val token = c.routeLive.attach(
                 RouteLiveRequest(selected.lineRef, selected.routeShortName, selected.operatorRef, readyStops.stops, target),

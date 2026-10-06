@@ -139,11 +139,10 @@ class FollowBusTest {
         val c = RouteLiveController(live, backgroundScope, clock, interval = 60.seconds)
         val token = c.attach(RouteLiveRequest(37121, "194", 3, stops, "27117"))
         runCurrent()
-        val first = live.calls.size
-        assertTrue(first in 5..9, "one refresh of the sampled stops (+ the reference stop): $first")
         assertNotNull(c.state?.snapshot)
+        val first = live.calls.size // one-time bisect for the broken stops
         advanceTimeBy(60.seconds); runCurrent()
-        assertTrue(live.calls.size in first + 1..first * 2, "one refresh per 60 s")
+        assertEquals(first + 1, live.calls.size, "one request per 60 s for the whole route")
         val info = FollowBus.compute(c.state?.snapshot, ref("7692269", null), stops, stop("27117"), null, null, clock.now(), null)
         assertEquals(FollowStatus.TRACKING, info.status)
         val n = live.calls.size

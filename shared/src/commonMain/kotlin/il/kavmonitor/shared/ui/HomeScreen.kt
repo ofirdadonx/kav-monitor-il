@@ -61,11 +61,12 @@ fun HomeScreen(c: AppController, watch: WatchState?) {
         Button(onClick = { c.openNewWatch() }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(Res.string.home_new_watch))
         }
-        Text(stringResource(Res.string.home_recents), style = MaterialTheme.typography.titleMedium)
-        if (recents.isEmpty()) {
-            Text(stringResource(Res.string.home_no_recents), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item(key = "nearby") { NearbyStopsSection(c) }
+            item(key = "recents-title") { Text(stringResource(Res.string.home_recents), style = MaterialTheme.typography.titleMedium) }
+            if (recents.isEmpty()) {
+                item(key = "recents-empty") { Text(stringResource(Res.string.home_no_recents), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
             items(recents, key = { it.recentKey }) { spec ->
                 Card(Modifier.fillMaxWidth().clickable { c.startWatch(spec) }) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

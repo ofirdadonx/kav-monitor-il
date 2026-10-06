@@ -162,7 +162,10 @@ class FallbackUiTest {
         note("fallback: ${st.fallback} buses=${st.buses.map { "${it.vehicleRef} eta=${it.eta}" }}")
         val polledAfter = TestHttp.snapshot().filter { it.host == "curlbus.test" }.map { it.path }
         note("watch requests: $polledAfter")
-        assertTrue(polledAfter.drop(2).all { it in setOf("/20750", "/27117", "/31492") })
+        // v0.5: both stand-ins in ONE request per poll (27117 is usually already known broken from the route view's
+        // bisect; otherwise one bisect: /20750+27117 → /20750, /27117)
+        assertTrue(polledAfter.toString(), polledAfter.drop(2).all { it in setOf("/20750+31492", "/20750+27117", "/20750", "/27117") })
+        assertTrue(polledAfter.toString(), polledAfter.takeLast(2).all { it == "/20750+31492" })
 
         // 7687869 passed 25141 at ~17:57:40 (closest fix 51 m at 17:57:37), before the watch could switch to the
         // neighbours: it must not produce a (late, false) arrival alert. 23399602 is listed with an estimated ETA.

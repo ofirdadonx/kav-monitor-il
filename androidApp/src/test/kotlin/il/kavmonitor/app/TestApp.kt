@@ -92,9 +92,9 @@ class TestApp : KavMonitorApp() {
             TestHttp.record(host, path)
             val body = when (host) {
                 "stride.test" -> FixtureStride.respond(path, req.url.parameters)
-                "curlbus.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/'))
-                    else if (path == "/20001") FakeCurlbus.next() else RouteReplay.stop(path.trim('/'))
-                "curlbus-route.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/')) else RouteReplay.stop(path.trim('/'))
+                "curlbus.test" -> if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) }
+                    else if (path == "/20001") FakeCurlbus.next() else multiStop(path) { RouteReplay.stop(it) }
+                "curlbus-route.test" -> if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) } else multiStop(path) { RouteReplay.stop(it) }
                 // real FOSSGIS OSRM foot answers recorded 2026-10-06 for the test locations; other pairs → 500 → straight line
                 "osrm.test" -> if (WalkReplay.down) null else WalkReplay.route(path)
                 else -> null
@@ -124,6 +124,18 @@ class TestApp : KavMonitorApp() {
     companion object {
         val LIVE: Boolean get() = System.getProperty("kav.live") == "true"
     }
+}
+
+/**
+ * curlbus `/<a>+<b>+…` from single-stop answers: visits merged (keyed by stop code); like the real server, the whole
+ * request is HTTP 500 (null) if any one stop is.
+ */
+fun multiStop(path: String, single: (String) -> String?): String? {
+    val codes = path.trim('/').split('+')
+    if (codes.size == 1) return single(codes[0])
+    val parts = codes.map { single(it) ?: return null }.map { ApiJson.parseToJsonElement(it).jsonObject }
+    val visits = JsonObject(parts.flatMap { (it["visits"] as? JsonObject)?.entries.orEmpty() }.associate { it.key to it.value })
+    return JsonObject(mapOf("errors" to kotlinx.serialization.json.JsonNull, "timestamp" to (parts[0]["timestamp"] ?: kotlinx.serialization.json.JsonNull), "visits" to visits)).toString()
 }
 
 fun fixture(name: String): String =

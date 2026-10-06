@@ -28,4 +28,6 @@ data class CurlbusVisitDto(
     val departed: String? = null,
     /** {"lat": "32.06", "lon": "34.78"}; values arrive as strings, sometimes the object is null. */
     val location: JsonObject? = null,
+    /** {"route": {"destination": {"name": {"HE": …}}, "agency": {"name": {"HE": …}}}} */
+    @SerialName("static_info") val staticInfo: JsonObject? = null,
 )

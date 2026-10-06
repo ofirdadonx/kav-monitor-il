@@ -86,4 +86,12 @@ class BrokenStopTracker(
             throw e
         }
     }
+
+    /** Multi-stop: a success clears every stop in it; a 5xx is left to [MultiStopFetcher]'s bisect (it marks the culprit). */
+    override suspend fun multiStopVisits(stopCodes: List<String>): il.kavmonitor.shared.model.StopSnapshot {
+        if (stopCodes.size == 1) return stopVisits(stopCodes.single())
+        val snap = delegate.multiStopVisits(stopCodes)
+        stopCodes.forEach { broken.clear(it) }
+        return snap
+    }
 }
