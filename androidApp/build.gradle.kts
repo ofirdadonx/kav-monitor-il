@@ -14,8 +14,22 @@ android {
         applicationId = "il.kavmonitor.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2"
+    }
+
+    // Release channel. beta: separate app next to the regular one (".beta" id, own label + orange BETA icon),
+    // version "0.2-beta". prod: the regular app, version "0.2".
+    flavorDimensions += "channel"
+    productFlavors {
+        create("beta") {
+            dimension = "channel"
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+        }
+        create("prod") {
+            dimension = "channel"
+        }
     }
 
     buildTypes {
@@ -27,7 +41,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -67,6 +84,22 @@ dependencies {
     testImplementation(libs.ktor.serialization.kotlinx.json)
     testImplementation(libs.multiplatform.settings.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// APKs named with the full version: build/outputs/named/kav-monitor-0.2-beta.apk (debug), …-release-unsigned.apk.
+androidComponents {
+    onVariants { variant ->
+        val cap = variant.name.replaceFirstChar { it.uppercase() }
+        val versionName = variant.outputs.first().versionName
+        val buildType = variant.buildType ?: "debug"
+        val apkDir = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK)
+        val copy = tasks.register<Copy>("copy${cap}NamedApk") {
+            from(apkDir) { include("*.apk") }
+            into(layout.buildDirectory.dir("outputs/named"))
+            rename { "kav-monitor-${versionName.get()}" + (if (buildType == "debug") "" else "-$buildType-unsigned") + ".apk" }
+        }
+        tasks.matching { it.name == "assemble$cap" }.configureEach { finalizedBy(copy) }
+    }
 }
 
 roborazzi {

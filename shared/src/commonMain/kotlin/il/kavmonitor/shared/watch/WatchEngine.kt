@@ -39,7 +39,7 @@ class WatchEngine(
                 val polledAt = clock.now()
                 val events = detector.onSnapshot(polledAt, visits, reliable)
                 val alertedKeys = (state.alerts + events).map { it.key }.toSet()
-                val buses = visits.sortedBy { it.eta ?: it.originDepartureTime }.map { v ->
+                val buses = uniqueByKey(visits).sortedBy { it.eta ?: it.originDepartureTime }.map { v ->
                     val fresh = v.hasGps && v.recordedAt != null && polledAt - v.recordedAt <= config.gpsFreshMaxAge
                     BusView(
                         key = v.key, vehicleRef = v.vehicleRef, tripId = v.tripId, eta = v.eta,
@@ -47,6 +47,7 @@ class WatchEngine(
                         distanceToStopMeters = if (v.lat != null && v.lon != null && spec.stop.lat != null && spec.stop.lon != null)
                             Geo.distanceMeters(v.lat, v.lon, spec.stop.lat, spec.stop.lon) else null,
                         alerted = v.key in alertedKeys,
+                        lat = v.lat, lon = v.lon,
                     )
                 }
                 val next = state.copy(
@@ -74,4 +75,15 @@ class WatchEngine(
 
     private fun Exception.shortMessage(): String =
         (this::class.simpleName ?: "Error") + (message?.let { ": " + it.lineSequence().first().take(120) } ?: "")
+
+    companion object {
+        /**
+         * One entry per bus key. SIRI sometimes lists the same trip twice with different vehicles (seen 2026-10-06 14:51 at
+         * 20001: trip 585301551 with vehicles 23400602 and 23401402); duplicate keys crash a keyed LazyColumn. Keeps the
+         * visit with GPS / the newest record.
+         */
+        fun uniqueByKey(visits: List<il.kavmonitor.shared.model.LiveVisit>) = visits.groupBy { it.key }.values.map { group ->
+            group.maxWith(compareBy({ it.hasGps }, { it.recordedAt ?: kotlin.time.Instant.DISTANT_PAST }))
+        }
+    }
 }

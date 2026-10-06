@@ -1,0 +1,46 @@
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+
+== line_ref=37121 ת. רכבת תל אביב- סבידור/רציפים A, תל אביב יפו → ת. רכבת הראשונים, ראשון לציון: 28 stops, length 25510 m, source GTFS_PREVIOUS_DAY 2026-10-05
+sampled stops: #1 20001 (+0m), #9 27117 (+9m), #12 33117 (+20m), #21 32939 (+32m), #28 36053 (+45m)
+  GET curlbus/33117 ok 801 ms, 12 visits
+  GET curlbus/27117 FAILED ServerResponseException: Server error(GET https://curlbus.app/27117: 500 . Text: "500 Internal Server Error
+  GET curlbus/20001 ok 944 ms, 30 visits
+  GET curlbus/32939 ok 372 ms, 12 visits
+  GET curlbus/25141 FAILED ServerResponseException: Server error(GET https://curlbus.app/25141: 500 . Text: "500 Internal Server Error
+  GET curlbus/36053 ok 389 ms, 27 visits
+  GET curlbus/31492 ok 571 ms, 12 visits
+refresh 1 at 14:58:25: 7 requests, active=3, notStarted=1, noGps=0, failed=[]
+   ACTIVE veh=7646269 sched=14:04 pct=97 remaining=723m offRoute=43m next=ת. רכבת הראשונים near=יגאל אלון/שדרות נים gpsAge=23s etaDest=14:59
+   ACTIVE veh=23373402 sched=14:26 pct=51 remaining=12472m offRoute=3m next=צומת בית דגן near=null gpsAge=24s etaDest=15:26
+   ACTIVE veh=7692269 sched=14:40 pct=16 remaining=21527m offRoute=218m next=מסעף בית דגן near=null gpsAge=27s etaDest=null
+   NOT_STARTED veh=23401402 sched=15:04 pct=null remaining=nullm offRoute=nullm next=null near=null gpsAge=nulls etaDest=null
+  GET curlbus/33117 ok 393 ms, 12 visits
+  GET curlbus/31492 ok 405 ms, 12 visits
+  GET curlbus/20001 ok 472 ms, 29 visits
+  GET curlbus/32939 ok 333 ms, 12 visits
+  GET curlbus/36053 ok 466 ms, 26 visits
+refresh 2 at 14:59:11: 5 requests, active=2, notStarted=1, noGps=0, failed=[]
+   ACTIVE veh=23373402 sched=14:26 pct=52 remaining=12281m offRoute=74m next=צומת בית דגן near=צומת בית דגן gpsAge=56s etaDest=15:26
+   ACTIVE veh=7692269 sched=14:40 pct=18 remaining=20845m offRoute=263m next=מסעף בית דגן near=null gpsAge=19s etaDest=null
+   NOT_STARTED veh=23401402 sched=15:04 pct=null remaining=nullm offRoute=nullm next=null near=null gpsAge=nulls etaDest=null
+
+== line_ref=37122 ת. רכבת הראשונים, ראשון לציון → ת. רכבת תל אביב - סבידור/דרך נמיר, תל אביב יפו: 27 stops, length 27771 m, source GTFS_PREVIOUS_DAY 2026-10-05
+sampled stops: #1 35886 (+0m), #9 34921 (+14m), #19 33736 (+29m), #24 21221 (+42m), #27 24068 (+47m)
+  GET curlbus/34921 ok 393 ms, 7 visits
+  GET curlbus/33736 ok 404 ms, 11 visits
+  GET curlbus/35886 ok 417 ms, 20 visits
+  GET curlbus/21221 ok 480 ms, 55 visits
+  GET curlbus/24068 ok 851 ms, 96 visits
+refresh 1 at 14:59:14: 5 requests, active=2, notStarted=0, noGps=0, failed=[]
+   ACTIVE veh=23401502 sched=14:30 pct=43 remaining=15881m offRoute=104m next=צומת בית דגן/כביש 412 near=null gpsAge=21s etaDest=null
+   ACTIVE veh=7628169 sched=15:00 pct=0 remaining=27771m offRoute=48m next=רבי יהודה הנשיא/הסנהדרין near=ת. רכבת הראשונים gpsAge=254s etaDest=null
+  GET curlbus/35886 ok 362 ms, 20 visits
+  GET curlbus/33736 ok 488 ms, 11 visits
+  GET curlbus/34921 ok 605 ms, 7 visits
+  GET curlbus/21221 ok 599 ms, 55 visits
+  GET curlbus/24068 ok 688 ms, 95 visits
+refresh 2 at 15:00:00: 5 requests, active=2, notStarted=0, noGps=0, failed=[]
+   ACTIVE veh=23401502 sched=14:30 pct=43 remaining=15828m offRoute=103m next=צומת בית דגן/כביש 412 near=null gpsAge=51s etaDest=null
+   ACTIVE veh=7628169 sched=15:00 pct=0 remaining=27771m offRoute=48m next=רבי יהודה הנשיא/הסנהדרין near=ת. רכבת הראשונים gpsAge=300s etaDest=null

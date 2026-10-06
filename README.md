@@ -4,8 +4,30 @@ Personal Android app: pick an Israeli bus line + direction, and get a loud notif
 **leaves its origin stop** or **reaches a stop you choose**. Each watch is started on demand and runs for a limited
 time (default 60 min). The last 5 watch configurations are kept as one-tap "recents".
 
-Status: v0.1 (first working version). Built and unit-tested on Linux; not yet run on a device or emulator.
-Raw evidence: `docs/curlbus-poll-log-2026-10-06.txt` (poll log), `docs/live-smoke-*.txt` (smoke runs).
+Status: **v0.2** (beta). v0.1 was confirmed working on the user's phone. v0.2 was built and verified on Linux only
+(unit tests, Robolectric/Roborazzi UI tests, live API runs). It has not been run on a device or emulator yet.
+Raw evidence: `docs/curlbus-poll-log-2026-10-06.txt` (poll log), `docs/live-smoke-*.txt` (smoke runs),
+`docs/evidence/` (v0.2 live route source measurements).
+
+### What's new in v0.2
+
+* **Readable direction cards**: operator, origin (stop + city), destination (stop + city), number of stops.
+  `route_long_name` is parsed (`RouteName`); the real first/last stop of the stop list is preferred once loaded.
+  Stop lists for all cards are fetched in parallel (max 3 at a time) and cached. The card shows immediately and the
+  count fills in ("סופר…" until then). Doubled apostrophes in MOT names are shown as gershayim (`חב''ד` → `חב"ד`).
+* **Live route view** ("על הקו עכשיו") after choosing a direction, and on the watch screen while the watch runs:
+  number of active buses, and per bus the % of route with a progress bar. See *Live route view* below.
+* **Per-bus details**: vehicle number, scheduled departure from the origin, last update ("לפני X" + clock time) with
+  GPS freshness (עדכני ≤ 2 min / לא עדכני ≤ 5 min / ישן), % of route + km left, next/nearby stop, ETA to the chosen
+  stop and to the last stop (curlbus ETAs, shown only when the stop was actually sampled for that bus).
+  Not-started trips: "טרם יצא · יציאה מתוכננת HH:mm". At the origin the ETA is labelled "יציאה משוערת".
+  Not shown on purpose: delay vs. schedule (the stop list may come from another day's representative trip, so a
+  computed delay could be wrong), speed and heading (one fix per ~minute is too noisy).
+* **Stop really stops** (in-app button, notification action, time limit, Android `onTimeout`): see *Background behaviour*.
+* UI: bidi isolation of stop names in the recents subtitle and status texts; sticky bottom "Start" bar; local date
+  format (`05/10`); small version label at the bottom of the home screen (`גרסה v0.2-beta`).
+* Bug fix: SIRI sometimes lists the same trip twice with two vehicles (seen live: trip 585301551 at 20001). v0.1
+  used the trip as a `LazyColumn` key, so that could crash the watch screen. Buses are now de-duplicated per key.
 
 ## Architecture
 
@@ -23,12 +45,15 @@ shared/                      KMP library (com.android.kotlin.multiplatform.libra
       CurlbusLiveDataSource  curlbus.app implementation + CurlbusParser
       RouteRepository        caches directions per (line, day) and stops per (line_ref, day)
     trigger/                 TriggerConfig (all thresholds), TriggerDetector (pure, stateful)
+    route/                   live route view: RouteSampling (which stops to poll), RouteGeometry (GPS → % of route),
+                             RouteLiveFetcher (one refresh), RouteLiveController (visible-only refresh loop)
     watch/                   WatchEngine (poll loop, time limit, error handling), WatchState, WatchStateHolder
     recents/RecentsStore     last 5 WatchSpecs as JSON in multiplatform-settings
-    ui/                      Compose UI (Home / New watch / Watch), AppController (state + actions)
+    ui/                      Compose UI (Home / New watch / Watch), AppController (state + actions),
+                             BusDetails (per-bus card), RouteLivePanel (route view)
     composeResources/values/strings.xml   all UI strings (Hebrew)
   androidMain/               OkHttp Ktor engine
-  jvmMain/                   OkHttp Ktor engine + dev/LiveSmoke.kt (live smoke runner)
+  jvmMain/                   OkHttp Ktor engine + dev/LiveSmoke.kt, dev/RouteLiveSmoke.kt (live smoke runners)
   jvmTest/                   unit tests + real API fixtures (resources/fixtures)
 androidApp/                  com.android.application (AGP 9 built-in Kotlin)
   KavMonitorApp              builds AppGraph (manual DI)
@@ -52,6 +77,34 @@ UI is Hebrew-only and forced RTL (`LayoutDirection.Rtl`), `android:supportsRtl="
     The UI shows a small note when a previous day's schedule is used.
 * **curlbus** (`https://curlbus.app/<stop_code>`, `Accept: application/json`), realtime only. One call per poll.
   Visits are filtered by `line_id` (== Stride `line_ref`), which separates Egged 194 (37121) from Kavim's 194.
+  Requests send `User-Agent: kav-monitor-app/0.2`.
+
+### Live route view: data source (measured 2026-10-06, Egged 194 / line_ref 37121)
+
+Full numbers: `docs/evidence/live_route_source_measurements.md`, live run: `docs/evidence/route_live_smoke_194.txt`.
+
+| | Stride `siri_vehicle_locations` | curlbus per stop (chosen) |
+|---|---|---|
+| query by line | `?siri_routes__line_ref=` → **HTTP 500 after 61 s** (statement timeout). The 2-step query (rides → locations) takes ~1–2 s | one request per stop |
+| lag | **15–26 min** (newest location 11:24:31 UTC at 11:50 UTC; 11:44:06 at 12:00). Trips started after the last ETL snapshot are missing | **13–49 s** GPS age at fetch |
+| coverage | all rides of the line | each stop lists buses ≤ ~30 min (21–29 min max ETA) away, and a live bus is listed at every stop ahead of it |
+
+Stride is fine for history but useless for "where is the bus now". A one-off scan of all 28 stops showed that
+polling a few well-spaced stops is enough:
+
+* **Sampling** (`RouteSampling`): origin, last stop, and enough stops in between that consecutive samples are
+  ≤ 15 min of scheduled run time apart (≤ 6 km if times are missing), plus the stop you are watching.
+  For 194: #1 20001, #9 27117, #12 33117, #21 32939, #28 36053 = **5 requests per refresh**, at most 3 in parallel.
+* Some stops always answer HTTP 500 (20876, 20725, 25141, 27117 on 194). A failed sample is replaced by a neighbour
+  and the substitute is remembered (first refresh 7 requests, then 5).
+* **Progress**: the bus's GPS fix is projected onto the stop-to-stop polyline between the last sampled stop it has
+  passed and the first sampled stop that still lists it, then interpolated on GTFS `shape_dist_traveled`
+  (straight-line distances if missing). More than 2 km off the polyline → no % shown. "ליד התחנה" = within 150 m.
+* **Politeness**: refresh every **45 s**, only while the route view is on screen **and** the app is visible
+  (`onStart`/`onStop`). It stops when you leave the screen, change line, start a watch from the new-watch screen
+  (the watch screen takes over), or stop the watch. The background service never fetches the route view; it keeps
+  polling only the one watched stop every 35 s. Stop lists are cached per (line_ref, day), and parallel requests for
+  the same list are shared.
 
 ## Trigger logic (and the live evidence behind it)
 
@@ -115,6 +168,23 @@ All thresholds are in `shared/.../trigger/TriggerConfig.kt`. Poll interval: 35 s
 * A time-limited partial wake lock (watch duration + 2 min) keeps the poll timer running with the screen off.
   It's released on stop/timeout.
 * The watch keeps running after an alert (the next bus can alert too) until stopped or the time limit.
+* **Stopping** (in-app "עצור מעקב", notification "עצור", time limit, system `onTimeout`) goes through one path:
+  the run's generation counter is bumped (late results of a cancelled poll are dropped), the poll job is cancelled,
+  the wake lock released, the foreground notification removed (`STOP_FOREGROUND_REMOVE` + explicit cancel) and the
+  service stops itself. Starting a new watch replaces the poller (never two pollers). Verified by
+  `WatchServiceStopTest` and `AppUiTest` with request-counting fakes (zero HTTP requests after Stop).
+
+## Variants (product flavor dimension `channel`)
+
+| variant | applicationId | versionName | launcher label | icon |
+|---|---|---|---|---|
+| **beta** | `il.kavmonitor.app.beta` | `0.2-beta` | "מעקב קו בטא" | orange background, smaller bus + white "BETA" badge |
+| **prod** | `il.kavmonitor.app` | `0.2` | "מעקב קו" | normal icon (green background, bus) |
+
+The beta has its own applicationId, so it installs **next to** an existing v0.1 / prod install (`il.kavmonitor.app`)
+instead of replacing it. Each has its own recents and notifications. The full version is shown at the bottom of the
+home screen. APKs are copied under a versioned name: `androidApp/build/outputs/named/kav-monitor-<versionName>.apk`
+(e.g. `kav-monitor-0.2-beta.apk`; release builds get `-release-unsigned`).
 
 ## Build & install
 
@@ -122,12 +192,14 @@ Requirements: JDK 17+ (built with OpenJDK 21), Android SDK with `platforms;andro
 (`ANDROID_HOME` or `local.properties` with `sdk.dir=…`).
 
 ```bash
-./gradlew assembleDebug                 # → androidApp/build/outputs/apk/debug/androidApp-debug.apk
-./gradlew :shared:jvmTest               # unit tests (fixtures + trigger logic + engine)
-./gradlew :shared:liveSmoke             # live: Stride directions/stops + curlbus visits for line 194
+./gradlew :androidApp:assembleBetaDebug   # → androidApp/build/outputs/named/kav-monitor-0.2-beta.apk
+./gradlew :androidApp:assembleProdDebug   # → androidApp/build/outputs/named/kav-monitor-0.2.apk
+./gradlew :shared:jvmTest                 # unit tests (fixtures, trigger logic, engine, route view)
+./gradlew :shared:liveSmoke               # live: Stride directions/stops + curlbus visits for line 194
 ./gradlew :shared:liveSmoke -PstopCode=20001 -PwatchMinutes=10   # run the real WatchEngine against curlbus
+./gradlew :shared:routeLiveSmoke [-Pline=194 -Poperator=3 -Prefreshes=2]   # live route view refreshes
 
-adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+adb install -r androidApp/build/outputs/named/kav-monitor-0.2-beta.apk
 ```
 
 Sideloading without adb: copy the APK to the phone and open it (allow "install unknown apps" for the file manager).
@@ -135,11 +207,18 @@ Debug build, signed with the local debug key.
 
 ## Known limitations / risks
 
-* curlbus is community-run and has no documented rate limits. We make one call per 35 s per active watch.
+* curlbus is community-run and has no documented rate limits. We make one call per 35 s per active watch, plus
+  ~5 calls per 45 s while the live route view is on screen.
   Some stops always return HTTP 500 (e.g. 27117 on line 194). The error shows in the status and polling continues.
+  If you *watch* such a stop, there's no neighbour fallback (the trigger needs that exact stop).
+* Route view %: the stop-to-stop polyline is a straight chord between stops, so on long curvy legs the % can be off
+  by up to ~0.5 km worth. Buses not yet listed at any sampled stop (≥ ~30 min before reaching one) aren't shown.
+* The stop list comes from one representative GTFS ride (today's, or the previous day's when today's isn't loaded
+  in Stride yet, which was the case all day on 2026-10-06). Alternatives that skip stops may show slightly wrong %.
 * Stride is slow-ish (≈1 s per call) and today's GTFS ride stops can be missing (see fallback above).
 * GPS fixes are 15–70 s apart and lag 10–60 s, so arrival alerts are roughly ±1 min.
-* Not tested on a device yet: notification sound/vibration, Doze and OEM battery savers, and FGS behaviour.
+* v0.1 ran fine on the user's phone. v0.2 hasn't been on a device yet: re-check notification sound/vibration,
+  Doze/OEM battery savers and FGS behaviour.
 
 ## Emulator & UI tests
 
@@ -148,9 +227,14 @@ Debug build, signed with the local debug key.
   run**: the microVM's KVM hits a kernel BUG (`kvm_spurious_fault` in `vmx_vcpu_create`) on vCPU
   creation, leaving a hung qemu. The script refuses to start when that BUG is in dmesg (`FORCE=1` overrides).
   It should work on a host with healthy KVM.
-* JVM UI test (Robolectric + Roborazzi, real MainActivity/WatchService/notifications):
-  * `./gradlew :androidApp:testDebugUnitTest` – offline, replays a recorded real 194 departure from 20001;
-    screenshots + notification dump → `docs/screenshots/`.
-  * `./gradlew :androidApp:testDebugUnitTest -Pkav.live=true [-Pkav.liveWaitMin=N]` – same flow against live
-    Stride/curlbus, optionally waiting N minutes for a real alert → `docs/screenshots/live/`.
+* JVM UI tests (Robolectric + Roborazzi, real MainActivity/WatchService/notifications), `:androidApp:testBetaDebugUnitTest`:
+  * `AppUiTest` offline: replays recorded real data (194 departure from 20001, a full 28-stop route scan at 14:51)
+    → `docs/screenshots/v0.2/replay/`. With `-Pkav.live=true [-Pkav.liveWaitMin=N]` it runs the same flow against
+    live Stride/curlbus, optionally waiting N minutes for a real alert → `docs/screenshots/v0.2/`.
+    v0.1 screenshots stay in `docs/screenshots/` and `docs/screenshots/live/`.
+  * `WatchServiceStopTest`: notification Stop action, Stop during an in-flight request, time limit, second start
+    replaces the poller, system `onTimeout`. All checked with request counters, wake lock and notification state.
+  * `RouteLiveLifecycleTest`: route view refreshes only while resumed/visible; nothing after back/stop.
+  * v0.2 live screenshots (2026-10-06 15:34–15:59, real departure alert at 15:58:07) are in `docs/screenshots/v0.2/`.
+    `beta_launcher_icon_preview.png` there is an SVG re-draw of the beta adaptive icon (circle mask), not a device capture.
   * Not covered: the system permission dialog, Doze, the real notification shade.

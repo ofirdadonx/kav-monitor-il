@@ -29,6 +29,8 @@ data class GtfsRideDto(
 data class GtfsRideStopDto(
     @SerialName("stop_sequence") val stopSequence: Int? = null,
     @SerialName("arrival_time") val arrivalTime: String? = null,
+    @SerialName("departure_time") val departureTime: String? = null,
+    @SerialName("shape_dist_traveled") val shapeDistTraveled: Double? = null,
     @SerialName("gtfs_stop__code") val stopCode: Long? = null,
     @SerialName("gtfs_stop__name") val stopName: String? = null,
     @SerialName("gtfs_stop__city") val stopCity: String? = null,

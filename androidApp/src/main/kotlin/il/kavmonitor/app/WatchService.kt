@@ -1,5 +1,6 @@
 package il.kavmonitor.app
 
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.ServiceCompat
 import il.kavmonitor.shared.data.ApiJson
 import il.kavmonitor.shared.model.WatchSpec
@@ -23,11 +25,25 @@ import kotlinx.coroutines.launch
 /**
  * Foreground service (type dataSync) that runs one watch at a time. Polling + trigger logic live in the shared
  * [WatchEngine]; this class only owns the Android lifecycle, the wake lock and the notifications.
+ *
+ * Stop guarantees (tested in WatchServiceStopTest): after ACTION_STOP, a time-out or onTimeout the poll job is
+ * cancelled (an in-flight HTTP call is cancelled with it), the wake lock is released, the ongoing notification is
+ * removed and no further state/notification update from the old run can land: every callback of a run checks its
+ * [generation] under [lock], and stopping/restarting bumps the generation. A second START replaces the running poller
+ * (never two pollers).
  */
 class WatchService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val lock = Any()
+    private var generation = 0
     private var job: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
+
+    @get:VisibleForTesting
+    val isPolling: Boolean get() = synchronized(lock) { job?.isActive == true }
+
+    @get:VisibleForTesting
+    val isWakeLockHeld: Boolean get() = synchronized(lock) { wakeLock?.isHeld == true }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -49,34 +65,47 @@ class WatchService : Service() {
             this, Notifications.ID_STATUS, Notifications.status(this, spec, null),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
         )
-        acquireWakeLock(spec.durationMinutes)
-        job?.cancel()
-        val engine = WatchEngine(app.graph.live, config = app.graph.triggerConfig)
-        job = scope.launch {
-            engine.run(
-                spec,
-                onState = { st ->
-                    WatchStateHolder.update(st)
-                    if (st.isActive) Notifications.updateStatus(this@WatchService, spec, st)
-                },
-                onTrigger = { ev, _ -> Notifications.alert(this@WatchService, spec, ev) },
-            )
-            // Time limit reached.
-            Notifications.finished(this@WatchService, spec)
-            finish()
+        val engine = WatchEngine(app.graph.live, clock = app.graph.clock, config = app.graph.triggerConfig)
+        synchronized(lock) {
+            job?.cancel() // replace a running watch: never two pollers
+            val gen = ++generation
+            acquireWakeLock(spec.durationMinutes)
+            job = scope.launch {
+                engine.run(
+                    spec,
+                    onState = { st ->
+                        ifCurrent(gen) {
+                            WatchStateHolder.update(st)
+                            if (st.isActive) Notifications.updateStatus(this@WatchService, spec, st)
+                        }
+                    },
+                    onTrigger = { ev, _ -> ifCurrent(gen) { Notifications.alert(this@WatchService, spec, ev) } },
+                )
+                // Time limit reached.
+                ifCurrent(gen) {
+                    generation++
+                    job = null
+                    Notifications.finished(this@WatchService, spec)
+                    finishLocked()
+                }
+            }
         }
     }
 
-    private fun stopEverything() {
+    private inline fun ifCurrent(gen: Int, block: () -> Unit) = synchronized(lock) { if (gen == generation) block() }
+
+    private fun stopEverything() = synchronized(lock) {
+        generation++ // late callbacks of the cancelled run are dropped
         job?.cancel()
         job = null
         WatchStateHolder.state.value?.let { if (it.isActive) WatchStateHolder.update(it.copy(phase = WatchPhase.STOPPED)) }
-        finish()
+        finishLocked()
     }
 
-    private fun finish() {
+    private fun finishLocked() {
         releaseWakeLock()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        getSystemService(NotificationManager::class.java).cancel(Notifications.ID_STATUS)
         stopSelf()
     }
 
@@ -104,7 +133,12 @@ class WatchService : Service() {
     }
 
     override fun onDestroy() {
-        releaseWakeLock()
+        synchronized(lock) {
+            generation++
+            job?.cancel()
+            job = null
+            releaseWakeLock()
+        }
         scope.cancel()
         super.onDestroy()
     }

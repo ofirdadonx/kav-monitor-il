@@ -16,12 +16,11 @@ data class Direction(
     val gtfsRouteId: Long,
     val date: String,
 ) {
-    /** "ORIGIN-CITY<->DEST-CITY-DIR#" → ("ORIGIN-CITY", "DEST-CITY"). Best effort, for display only. */
-    val originLabel: String get() = longName.substringBefore("<->").trim()
-    val destinationLabel: String
-        get() = longName.substringAfter("<->", "").trim()
-            .replace(Regex("-[0-9]+[#0-9A-Za-z]*$"), "")
-            .ifBlank { longName }
+    /** Origin/destination parsed from GTFS `route_long_name` (display fallback when the stop list is not loaded). */
+    val parsedName: RouteName get() = RouteName.parse(longName, routeDirection, routeAlternative)
+
+    /** Destination label stored in [WatchSpec.directionLabel]: "stop, city". */
+    val destinationLabel: String get() = parsedName.destination.label.ifBlank { longName }
 }
 
 @Serializable
@@ -32,12 +31,19 @@ data class RouteStop(
     val city: String? = null,
     val lat: Double? = null,
     val lon: Double? = null,
+    /** Distance along the route from the first stop (GTFS shape_dist_traveled, meters; or straight-line estimate). */
+    val distanceMeters: Double? = null,
+    /** Scheduled seconds from the first stop's departure (from one representative GTFS ride). */
+    val offsetSeconds: Int? = null,
 )
 
 /** Where the stop list came from (GTFS for today, GTFS from an earlier day, or SIRI history). */
 enum class StopListSource { GTFS_TODAY, GTFS_PREVIOUS_DAY, SIRI_HISTORY }
 
-data class StopList(val lineRef: Int, val stops: List<RouteStop>, val source: StopListSource, val sourceDate: String)
+data class StopList(val lineRef: Int, val stops: List<RouteStop>, val source: StopListSource, val sourceDate: String) {
+    /** Route length in meters (distance of the last stop), when known. */
+    val lengthMeters: Double? get() = stops.lastOrNull()?.distanceMeters?.takeIf { it > 0 }
+}
 
 /** A single realtime "visit" (upcoming call) of a vehicle at a stop, normalized from the live source. */
 data class LiveVisit(

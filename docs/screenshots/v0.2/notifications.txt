@@ -1,0 +1,8 @@
+== after first poll ==
+channel=watch_status ongoing=true title=קו 194 · יציאה מת. רכבת תל אביב- סבידור/רציפים A | text=עודכן 15:34:57 · נראו 1 · עד 16:34 | actions=עצור
+== live: after waiting up to 32 min for a departure (alert=true) ==
+channel=bus_alert_v1 ongoing=false title=קו 194 יצא מת. רכבת תל אביב- סבידור/רציפים A! | text=רכב 23401502 · יציאה מתוכננת 15:58 · זמן לצאת לתחנה | actions=null
+channel=watch_status ongoing=true title=קו 194 · יציאה מת. רכבת תל אביב- סבידור/רציפים A | text=עודכן 15:58:07 · נראו 1 · עד 16:34 | actions=עצור
+# requests before stop check=250, after 50000ms quiet=250: []
+== after Stop ==
+channel=bus_alert_v1 ongoing=false title=קו 194 יצא מת. רכבת תל אביב- סבידור/רציפים A! | text=רכב 23401502 · יציאה מתוכננת 15:58 · זמן לצאת לתחנה | actions=null

@@ -76,3 +76,19 @@ tasks.register<JavaExec>("liveSmoke") {
     )
     notCompatibleWithConfigurationCache("dev runner")
 }
+
+// Live route view against the real APIs: ./gradlew :shared:routeLiveSmoke [-Pline=194 -Poperator=3 -Prefreshes=2]
+tasks.register<JavaExec>("routeLiveSmoke") {
+    group = "verification"
+    description = "Runs the live route view fetcher (sampled curlbus stops) against the real APIs and prints the result."
+    val jvmCompilation = kotlin.jvm().compilations.getByName("main")
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath = files(jvmCompilation.output.allOutputs, jvmCompilation.runtimeDependencyFiles)
+    mainClass.set("il.kavmonitor.shared.dev.RouteLiveSmokeKt")
+    args = listOf(
+        (project.findProperty("line") as String?) ?: "194",
+        (project.findProperty("operator") as String?) ?: "3",
+        (project.findProperty("refreshes") as String?) ?: "2",
+    )
+    notCompatibleWithConfigurationCache("dev runner")
+}

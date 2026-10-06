@@ -20,6 +20,7 @@ open class KavMonitorApp : Application() {
     protected open fun createGraph(): AppGraph = AppGraph(
         settings = SharedPreferencesSettings(getSharedPreferences("kav_monitor", Context.MODE_PRIVATE)),
         launcher = launcher,
+        appVersion = BuildConfig.VERSION_NAME,
     )
 }
 

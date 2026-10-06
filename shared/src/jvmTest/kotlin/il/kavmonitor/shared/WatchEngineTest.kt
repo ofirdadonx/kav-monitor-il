@@ -10,6 +10,7 @@ import il.kavmonitor.shared.trigger.TriggerReason
 import il.kavmonitor.shared.watch.WatchEngine
 import il.kavmonitor.shared.watch.WatchPhase
 import il.kavmonitor.shared.watch.WatchState
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,5 +61,24 @@ class WatchEngineTest {
         assertEquals(TriggerReason.LEFT_ORIGIN_DROPPED, events.single().reason)
         assertEquals("T1", events.single().tripId)
         assertEquals(1, final.busesSeen)
+    }
+
+    @Test
+    fun duplicateTripListedWithTwoVehiclesYieldsOneBus() = runTest {
+        // real 20001 response at 14:51: trip 585301551 listed with vehicles 23400602 and 23401402
+        val snap = il.kavmonitor.shared.data.CurlbusParser.parse(fixture("route194_1451/20001.json"), "20001", ilTime("14:51:32"))
+        val visits = snap.forLine(37121, "194", 3)
+        assertEquals(2, visits.size)
+        val unique = WatchEngine.uniqueByKey(visits)
+        assertEquals(1, unique.size)
+        assertEquals("23401402", unique.single().vehicleRef) // the newer SIRI record (13:04 vs 11:58)
+
+        val live = object : LiveDataSource { override suspend fun stopVisits(stopCode: String) = snap }
+        var last: WatchState? = null
+        val engine = WatchEngine(live, MutableClock(ilTime("14:51:32")), TriggerConfig(pollInterval = 1.seconds))
+        val job = launch { engine.run(spec194(TriggerType.DEPARTS_ORIGIN, minutes = 15), { last = it }, { _, _ -> }) }
+        testScheduler.advanceTimeBy(100); testScheduler.runCurrent()
+        job.cancel()
+        assertEquals(1, last!!.buses.size, "keys must be unique (keyed LazyColumn)")
     }
 }

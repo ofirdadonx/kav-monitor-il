@@ -46,8 +46,9 @@ class StrideStaticDataSourceTest {
         assertEquals("אגד", egged.agencyName)
         assertEquals(3, egged.operatorRef)
         assertEquals(9696855L, egged.gtfsRouteId)
-        assertEquals("ת. רכבת תל אביב- סבידור/רציפים A-תל אביב יפו", egged.originLabel)
-        assertEquals("ת. רכבת הראשונים-ראשון לציון", egged.destinationLabel)
+        // v0.2: long name parsed into stop + city (was the raw "stop-city" text)
+        assertEquals("ת. רכבת תל אביב- סבידור/רציפים A, תל אביב יפו", egged.parsedName.origin.label)
+        assertEquals("ת. רכבת הראשונים, ראשון לציון", egged.destinationLabel)
         assertEquals(setOf(3, 18), dirs.map { it.operatorRef }.toSet()) // Kavim also runs a "194"
     }
 

@@ -39,9 +39,11 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         app.launcher.permissionGate = { onDone -> ensureNotificationPermission(onDone) }
+        app.graph.controller.setAppVisible(true) // live route view may refresh
     }
 
     override fun onStop() {
+        app.graph.controller.setAppVisible(false) // stop the live route view refresh in the background
         app.launcher.permissionGate = null
         super.onStop()
     }

@@ -29,7 +29,7 @@ fun main(args: Array<String>) = runBlocking {
     println("== Directions for line $line on ${repo.today()} (Stride gtfs_routes) ==")
     val dirs = repo.directions(line)
     dirs.forEach { println("  line_ref=${it.lineRef} op=${it.operatorRef} ${it.agencyName} dir=${it.routeDirection} | ${it.longName}") }
-    val dir = dirs.firstOrNull { it.operatorRef == operator && it.originLabel.contains("סבידור") }
+    val dir = dirs.firstOrNull { it.operatorRef == operator && it.parsedName.origin.stop.contains("סבידור") }
         ?: dirs.firstOrNull { it.operatorRef == operator } ?: error("no direction for operator $operator")
     println("\n== Stops for line_ref=${dir.lineRef} ==")
     val t0 = System.currentTimeMillis()

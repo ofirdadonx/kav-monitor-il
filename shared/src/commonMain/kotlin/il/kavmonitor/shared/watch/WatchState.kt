@@ -17,6 +17,8 @@ data class BusView(
     val hasFreshGps: Boolean,
     val distanceToStopMeters: Double?,
     val alerted: Boolean,
+    val lat: Double? = null,
+    val lon: Double? = null,
 )
 
 data class WatchState(

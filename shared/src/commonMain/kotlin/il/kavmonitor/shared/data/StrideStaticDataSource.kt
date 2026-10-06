@@ -1,10 +1,14 @@
 package il.kavmonitor.shared.data
 
+import il.kavmonitor.shared.model.RouteName
+
 import il.kavmonitor.shared.model.Direction
 import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.model.StopList
 import il.kavmonitor.shared.model.StopListSource
+import il.kavmonitor.shared.route.RouteGeometry
 import il.kavmonitor.shared.util.minusDays
+import il.kavmonitor.shared.util.parseApiInstant
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -119,8 +123,8 @@ class StrideStaticDataSource(
                     parameter("limit", 1)
                 }.body<List<GtfsStopDto>>()
             }?.firstOrNull()
-            RouteStop(i + 1, code, info?.name ?: code, info?.city, info?.lat, info?.lon)
-        }
+            RouteStop(i + 1, code, info?.name?.let(RouteName::cleanName) ?: code, info?.city, info?.lat, info?.lon)
+        }.let { RouteGeometry.withDistances(it) }
     }
 
     private suspend fun <T> runCatchingApi(block: suspend () -> T): T? = try {
@@ -134,19 +138,26 @@ class StrideStaticDataSource(
     companion object {
         const val LOOKBACK_DAYS = 7
 
-        fun mapRideStops(rows: List<GtfsRideStopDto>): List<RouteStop> =
-            rows.filter { it.stopCode != null }
+        fun mapRideStops(rows: List<GtfsRideStopDto>): List<RouteStop> {
+            val sorted = rows.filter { it.stopCode != null }
                 .sortedBy { it.stopSequence ?: Int.MAX_VALUE }
                 .distinctBy { it.stopCode }
-                .mapIndexed { i, r ->
-                    RouteStop(
-                        sequence = r.stopSequence ?: (i + 1),
-                        code = r.stopCode!!.toString(),
-                        name = r.stopName ?: r.stopCode.toString(),
-                        city = r.stopCity,
-                        lat = r.stopLat,
-                        lon = r.stopLon,
-                    )
-                }
+            val start = sorted.firstOrNull()?.let { parseApiInstant(it.departureTime) ?: parseApiInstant(it.arrivalTime) }
+            val stops = sorted.mapIndexed { i, r ->
+                val t = parseApiInstant(r.arrivalTime) ?: parseApiInstant(r.departureTime)
+                RouteStop(
+                    sequence = r.stopSequence ?: (i + 1),
+                    code = r.stopCode!!.toString(),
+                    name = r.stopName?.let(RouteName::cleanName) ?: r.stopCode.toString(),
+                    city = r.stopCity,
+                    lat = r.stopLat,
+                    lon = r.stopLon,
+                    // GTFS leaves shape_dist_traveled empty on the first stop
+                    distanceMeters = r.shapeDistTraveled ?: if (i == 0) 0.0 else null,
+                    offsetSeconds = if (start != null && t != null) (t - start).inWholeSeconds.toInt() else null,
+                )
+            }
+            return RouteGeometry.withDistances(stops)
+        }
     }
 }

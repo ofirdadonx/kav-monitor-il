@@ -1,0 +1,29 @@
+scan start 14:51:31
+14:51:32 1 20001 None all=35 maxeta=28m ['23400602@15:04 eta+12m', '23401402@15:04 eta+12m']
+14:51:33 2 20762 275 all=7 maxeta=25m ['23400602@15:04 eta+14m', '23401402@15:04 eta+14m']
+14:51:35 3 21705 559 all=29 maxeta=27m ['23400602@15:04 eta+17m', '23401402@15:04 eta+17m']
+4 20876 ERROR 500 Internal Server Error  Server got it
+14:51:39 5 21472 1348 all=99 maxeta=29m ['23400602@15:04 eta+20m', '23401402@15:04 eta+20m']
+6 20725 ERROR 500 Internal Server Error  Server got it
+14:51:43 7 20750 2600 all=40 maxeta=29m ['7692269@14:40 eta+0m gps lag29s', '23401402@15:04 eta+24m', '23400602@15:04 eta+28m']
+8 25141 ERROR 500 Internal Server Error  Server got it
+9 27117 ERROR 500 Internal Server Error  Server got it
+14:51:48 10 31492 12800 all=12 maxeta=29m ['23373402@14:26 eta+6m gps lag31s', '7692269@14:40 eta+13m gps lag34s']
+14:51:50 11 33737 13373 all=13 maxeta=29m ['23373402@14:26 eta+8m gps lag13s', '7692269@14:40 eta+15m gps lag16s']
+14:51:52 12 33117 16205 all=10 maxeta=29m ['23373402@14:26 eta+10m gps lag15s', '7692269@14:40 eta+18m gps lag18s']
+14:51:53 13 36926 19024 all=8 maxeta=28m ['23373402@14:26 eta+18m gps lag16s', '7692269@14:40 eta+26m gps lag19s']
+14:51:55 14 33504 19290 all=7 maxeta=27m ['23373402@14:26 eta+19m gps lag18s', '7692269@14:40 eta+27m gps lag21s']
+14:51:57 15 36073 19786 all=10 maxeta=29m ['23373402@14:26 eta+21m gps lag20s', '7692269@14:40 eta+29m gps lag23s']
+14:51:59 16 32922 20088 all=9 maxeta=24m ['23373402@14:26 eta+22m gps lag22s']
+14:52:00 17 37327 20312 all=10 maxeta=29m ['23373402@14:26 eta+21m gps lag23s', '7692269@14:40 eta+29m gps lag26s']
+14:52:02 18 32919 20414 all=6 maxeta=22m ['23373402@14:26 eta+22m gps lag25s']
+14:52:04 19 36005 20734 all=6 maxeta=22m ['23373402@14:26 eta+22m gps lag27s']
+14:52:06 20 32877 21367 all=10 maxeta=24m ['23373402@14:26 eta+24m gps lag29s']
+14:52:07 21 32939 21648 all=7 maxeta=24m ['23373402@14:26 eta+24m gps lag30s']
+14:52:09 22 35542 22645 all=3 maxeta=26m ['23373402@14:26 eta+26m gps lag32s']
+14:52:11 23 35561 22949 all=4 maxeta=27m ['7646269@14:04 eta+0m gps lag41s', '23373402@14:26 eta+27m gps lag34s']
+14:52:12 24 35286 23593 all=5 maxeta=29m ['7646269@14:04 eta+1m gps lag42s', '23373402@14:26 eta+29m gps lag35s']
+14:52:14 25 35284 24091 all=7 maxeta=21m ['7646269@14:04 eta+2m gps lag44s']
+14:52:16 26 35283 24483 all=7 maxeta=21m ['7646269@14:04 eta+3m gps lag46s']
+14:52:17 27 36813 24772 all=12 maxeta=26m ['7646269@14:04 eta+4m gps lag47s']
+14:52:19 28 36053 25510 all=24 maxeta=28m ['7646269@14:04 eta+6m gps lag49s']
