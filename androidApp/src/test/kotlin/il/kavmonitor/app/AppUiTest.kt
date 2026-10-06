@@ -113,7 +113,7 @@ class AppUiTest {
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
         waitForText("מעקב חדש")
-        assertTrue(has("v0.4-beta"))
+        assertTrue(has("v0.5-beta"))
         shot("01_home_empty")
 
         // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches

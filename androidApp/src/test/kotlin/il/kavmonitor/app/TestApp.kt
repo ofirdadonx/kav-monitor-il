@@ -40,7 +40,7 @@ import kotlin.time.Instant
 object TestConfig {
     var pollInterval: Duration = 2.seconds
     var routeLiveInterval: Duration = 3.seconds
-    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.reset(); FallbackReplay.active = false; WalkReplay.down = false; RouteReplay.hiddenVehicles.clear() }
+    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.reset(); FallbackReplay.active = false; NearbyReplay.calls = 0; StopReplay.active = false; NearbyReplay.asked.clear(); WalkReplay.down = false; RouteReplay.hiddenVehicles.clear() }
 }
 
 /** Wall clock that can run faster (time-out tests). */
@@ -92,9 +92,12 @@ class TestApp : KavMonitorApp() {
             TestHttp.record(host, path)
             val body = when (host) {
                 "stride.test" -> FixtureStride.respond(path, req.url.parameters)
-                "curlbus.test" -> if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) }
+                "curlbus.test" -> if (path == "/nearby") NearbyReplay.respond(req.url.parameters)
+                    else if (StopReplay.active && path == "/${StopReplay.CODE}") StopReplay.stop()
+                    else if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) }
                     else if (path == "/20001") FakeCurlbus.next() else multiStop(path) { RouteReplay.stop(it) }
-                "curlbus-route.test" -> if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) } else multiStop(path) { RouteReplay.stop(it) }
+                "curlbus-route.test" -> if (StopReplay.active && path == "/${StopReplay.CODE}") StopReplay.stop()
+                    else if (FallbackReplay.active) multiStop(path) { FallbackReplay.stop(it) } else multiStop(path) { RouteReplay.stop(it) }
                 // real FOSSGIS OSRM foot answers recorded 2026-10-06 for the test locations; other pairs → 500 → straight line
                 "osrm.test" -> if (WalkReplay.down) null else WalkReplay.route(path)
                 else -> null
@@ -255,4 +258,37 @@ object FallbackReplay {
         val now = TestClock.now()
         return (list.lastOrNull { it.first <= now } ?: list.first()).second
     }
+}
+
+/**
+ * curlbus `/nearby` answered from the real answers recorded 2026-10-06 (fixtures/nearby): the recording with the same
+ * radius whose centre is within ~300 m of the asked point; otherwise an empty list (like a point with no stops).
+ */
+object NearbyReplay {
+    @Volatile var calls = 0
+    val asked: MutableList<String> = java.util.concurrent.CopyOnWriteArrayList()
+    private val files: List<Triple<Double, Double, Int>> by lazy {
+        val dir = File(requireNotNull(TestApp::class.java.getResource("/fixtures/nearby")).toURI())
+        dir.listFiles()!!.mapNotNull { f ->
+            Regex("""nearby_lat([\d.]+)_lon([\d.]+)_radius(\d+)\.json""").matchEntire(f.name)?.destructured
+                ?.let { (la, lo, r) -> Triple(la.toDouble(), lo.toDouble(), r.toInt()) }
+        }
+    }
+    fun respond(q: io.ktor.http.Parameters): String {
+        calls++
+        asked += "lat=${q["lat"]}&lon=${q["lon"]}&radius=${q["radius"]}"
+        val lat = q["lat"]!!.toDouble(); val lon = q["lon"]!!.toDouble(); val r = q["radius"]!!.toInt()
+        val f = files.filter { it.third == r }.minByOrNull { kotlin.math.hypot(it.first - lat, it.second - lon) }
+            ?.takeIf { kotlin.math.hypot(it.first - lat, it.second - lon) < 0.003 } ?: return "[]"
+        return fixture("nearby/nearby_lat%.4f_lon%.4f_radius%d.json".format(java.util.Locale.ROOT, f.first, f.second, f.third))
+    }
+}
+
+/** curlbus `/21472` (Azrieli, all lines, 87 visits) recorded 2026-10-06 19:30:59, time-shifted so that moment is "now". */
+object StopReplay {
+    /** On: the single-stop path `/21472` (stop screen; both hosts) gets this recording instead of the 14:51 scan. */
+    @Volatile var active = false
+    const val CODE = "21472"
+    private val anchor = Instant.parse("2026-10-06T19:30:59+03:00")
+    fun stop(): String = shiftTimes(fixture("stop_21472/stop_21472_193059.json"), anchor)
 }

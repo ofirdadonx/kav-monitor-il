@@ -43,7 +43,6 @@ import org.jetbrains.compose.resources.stringResource
 import il.kavmonitor.shared.resources.Res
 import il.kavmonitor.shared.resources.walk_minutes
 import il.kavmonitor.shared.resources.walk_routed
-import il.kavmonitor.shared.resources.walk_straight
 
 private fun NearbyStop.asRouteStop() = RouteStop(0, code, nameHe, null, lat, lon)
 
@@ -86,7 +85,7 @@ fun NearbyStopsSection(c: AppController) {
                                 LaunchedEffect(s.code, fix?.let { il.kavmonitor.shared.walk.WalkPlanner.key(it.lat, it.lon, s.code) }) { c.requestWalk(s.asRouteStop()) }
                                 c.autoWalk(s.asRouteStop())?.let { w ->
                                     if (w.routed) stringResource(Res.string.walk_routed, distanceText(w.distanceMeters), w.minutes)
-                                    else stringResource(Res.string.walk_minutes, w.minutes) + " · " + stringResource(Res.string.walk_straight)
+                                    else "~" + stringResource(Res.string.walk_minutes, w.minutes) + " הליכה (הערכה)"
                                 }
                             } else null
                             Text(
