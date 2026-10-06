@@ -140,3 +140,17 @@ Debug build, signed with the local debug key.
 * Stride is slow-ish (≈1 s per call) and today's GTFS ride stops can be missing (see fallback above).
 * GPS fixes are 15–70 s apart and lag 10–60 s, so arrival alerts are roughly ±1 min.
 * Not tested on a device yet: notification sound/vibration, Doze and OEM battery savers, and FGS behaviour.
+
+## Emulator & UI tests
+
+* `scripts/emulator.sh start|stop|status|install|shot NAME` – headless AVD `kav_pixel_api36`
+  (Pixel 8, API 36 Google APIs x86_64, TZ Asia/Jerusalem). **On the current dev box the emulator cannot
+  run**: the microVM's KVM hits a kernel BUG (`kvm_spurious_fault` in `vmx_vcpu_create`) on vCPU
+  creation, leaving a hung qemu. The script refuses to start when that BUG is in dmesg (`FORCE=1` overrides).
+  It should work on a host with healthy KVM.
+* JVM UI test (Robolectric + Roborazzi, real MainActivity/WatchService/notifications):
+  * `./gradlew :androidApp:testDebugUnitTest` – offline, replays a recorded real 194 departure from 20001;
+    screenshots + notification dump → `docs/screenshots/`.
+  * `./gradlew :androidApp:testDebugUnitTest -Pkav.live=true [-Pkav.liveWaitMin=N]` – same flow against live
+    Stride/curlbus, optionally waiting N minutes for a real alert → `docs/screenshots/live/`.
+  * Not covered: the system permission dialog, Doze, the real notification shade.

@@ -51,7 +51,7 @@ class WatchService : Service() {
         )
         acquireWakeLock(spec.durationMinutes)
         job?.cancel()
-        val engine = WatchEngine(app.graph.live)
+        val engine = WatchEngine(app.graph.live, config = app.graph.triggerConfig)
         job = scope.launch {
             engine.run(
                 spec,

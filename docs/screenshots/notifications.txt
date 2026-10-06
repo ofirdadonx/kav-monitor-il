@@ -1,0 +1,7 @@
+== after first poll ==
+channel=watch_status ongoing=true title=קו 194 · יציאה מת. רכבת תל אביב- סבידור/רציפים A | text=עודכן 11:30:44 · נראו 3 · עד 12:30 | big=עודכן 11:30:44 · נראו 3 · עד 12:30 | actions=עצור
+== after departure alert ==
+channel=bus_alert_v1 ongoing=false title=קו 194 יצא מת. רכבת תל אביב- סבידור/רציפים A! | text=רכב 7628169 · יציאה מתוכננת 11:32 · זמן לצאת לתחנה | big=null | actions=null
+channel=watch_status ongoing=true title=קו 194 · יציאה מת. רכבת תל אביב- סבידור/רציפים A | text=עודכן 11:30:46 · נראו 3 · עד 12:30 | big=עודכן 11:30:46 · נראו 3 · עד 12:30 | actions=עצור
+== after Stop ==
+channel=bus_alert_v1 ongoing=false title=קו 194 יצא מת. רכבת תל אביב- סבידור/רציפים A! | text=רכב 7628169 · יציאה מתוכננת 11:32 · זמן לצאת לתחנה | big=null | actions=null

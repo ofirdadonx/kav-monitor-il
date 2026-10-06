@@ -5,7 +5,7 @@ import android.content.Context
 import com.russhwolf.settings.SharedPreferencesSettings
 import il.kavmonitor.shared.AppGraph
 
-class KavMonitorApp : Application() {
+open class KavMonitorApp : Application() {
     lateinit var graph: AppGraph
         private set
     val launcher by lazy { AndroidWatchLauncher(this) }
@@ -13,11 +13,14 @@ class KavMonitorApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Notifications.createChannels(this)
-        graph = AppGraph(
-            settings = SharedPreferencesSettings(getSharedPreferences("kav_monitor", Context.MODE_PRIVATE)),
-            launcher = launcher,
-        )
+        graph = createGraph()
     }
+
+    /** Overridden in Robolectric tests to plug in fixture-backed data sources. */
+    protected open fun createGraph(): AppGraph = AppGraph(
+        settings = SharedPreferencesSettings(getSharedPreferences("kav_monitor", Context.MODE_PRIVATE)),
+        launcher = launcher,
+    )
 }
 
 val Context.app: KavMonitorApp get() = applicationContext as KavMonitorApp

@@ -1,0 +1,3 @@
+== after first poll ==
+channel=watch_status ongoing=true title=קו 194 · יציאה מת. רכבת תל אביב- סבידור/רציפים A | text=עודכן 11:29:52 · נראו 1 · עד 12:29 | big=עודכן 11:29:52 · נראו 1 · עד 12:29 | actions=עצור
+== after Stop ==

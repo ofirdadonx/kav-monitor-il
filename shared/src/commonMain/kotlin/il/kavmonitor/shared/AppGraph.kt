@@ -9,6 +9,7 @@ import il.kavmonitor.shared.data.StrideStaticDataSource
 import il.kavmonitor.shared.data.createHttpClient
 import il.kavmonitor.shared.platform.WatchLauncher
 import il.kavmonitor.shared.recents.RecentsStore
+import il.kavmonitor.shared.trigger.TriggerConfig
 import il.kavmonitor.shared.ui.AppController
 import io.ktor.client.HttpClient
 
@@ -19,6 +20,7 @@ class AppGraph(
     val httpClient: HttpClient = createHttpClient(),
     val static: StaticDataSource = StrideStaticDataSource(httpClient),
     val live: LiveDataSource = CurlbusLiveDataSource(httpClient),
+    val triggerConfig: TriggerConfig = TriggerConfig.Default,
 ) {
     val routes = RouteRepository(static)
     val recents = RecentsStore(settings)
