@@ -12,6 +12,7 @@ import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.platform.WatchLauncher
 import il.kavmonitor.shared.recents.RecentsStore
 import il.kavmonitor.shared.trigger.TriggerConfig
+import il.kavmonitor.shared.watch.WatchStateHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,7 @@ class AppController(
 
     fun startWatch(spec: WatchSpec) {
         recents.add(spec)
+        WatchStateHolder.update(null) // show "starting…" instead of the previous watch until the service reports
         launcher.start(spec)
         screen = Screen.WATCH
     }

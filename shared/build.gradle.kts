@@ -71,7 +71,8 @@ tasks.register<JavaExec>("liveSmoke") {
     args = listOfNotNull(
         (project.findProperty("line") as String?) ?: "194",
         (project.findProperty("operator") as String?) ?: "3",
-        project.findProperty("stopCode") as String?,
+        (project.findProperty("stopCode") as String?) ?: "-",
+        (project.findProperty("watchMinutes") as String?) ?: "0",
     )
     notCompatibleWithConfigurationCache("dev runner")
 }

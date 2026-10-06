@@ -69,4 +69,26 @@ class TriggerReplayTest {
         assertEquals(listOf(TriggerReason.AT_STOP_ETA), r[0].second.map { it.reason })
         assertTrue(r[0].second.single().distanceMeters!! > 150)
     }
+
+    @Test
+    fun arrivalAtAzrieliInHeavyTraffic() {
+        // Bus 18379504 crawled out of Savidor: 10:09:08 fix ~840 m away (ETA 10:11), 10:09:45 fix ~650 m (ETA 10:11),
+        // 10:10:27 same fix, ETA now 33 s away → "arriving"; 10:11:03 dropped off the Azrieli list (arrived).
+        val polls = listOf("21472_100908", "21472_100945", "21472_101027", "21472_101103")
+        val r = replay(STOP_21472, TriggerType.ARRIVES_AT_STOP, polls)
+        assertEquals(listOf(0, 0, 1, 0), r.map { it.second.size })
+        assertEquals(TriggerReason.AT_STOP_ETA, r[2].second.single().reason)
+        assertEquals("18379504", r[2].second.single().vehicleRef)
+
+        val noEta = replay(STOP_21472, TriggerType.ARRIVES_AT_STOP, polls, TriggerConfig(arriveEtaThreshold = kotlin.time.Duration.ZERO))
+        assertEquals(TriggerReason.DROPPED_AT_STOP, noEta[3].second.single().reason)
+    }
+
+    @Test
+    fun originDepartureOf1017Bus() {
+        // 10:15:28 vehicle 7628169 (sched 10:17) listed; 10:16:04 gone (first GPS fix 10:15:22 at the platform).
+        val r = replay(ORIGIN_20001, TriggerType.DEPARTS_ORIGIN, listOf("20001_101528", "20001_101604"))
+        assertTrue(r[0].second.isEmpty())
+        assertEquals(listOf("7628169" to TriggerReason.LEFT_ORIGIN_DROPPED), r[1].second.map { it.vehicleRef to it.reason })
+    }
 }
