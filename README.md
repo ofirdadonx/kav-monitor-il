@@ -10,6 +10,36 @@ so real GPS fixes and the real system permission dialog are untested.
 Raw evidence: `docs/curlbus-poll-log-2026-10-06.txt` (poll log), `docs/live-smoke-*.txt` (smoke runs),
 `docs/evidence/` (v0.2 live route source measurements, v0.3 Stride geo probe and "time to leave" live run).
 
+### What's new in v0.3.1 (broken-stop fallback)
+
+Some stops answer **HTTP 500** on curlbus for every request (probed 2026-10-06 17:57 IL: 25141, 27117, 20876 and
+20725 on line 194; Accept json / text/plain / */*, `?lang=he`, a trailing slash, `?format=json` and multi-stop
+`25141+21472` all return 500, `.json` 404, so there is no workaround on the curlbus side).
+
+* **Detection.** A stop is "broken" after **2 consecutive 5xx** (`BrokenStopTracker`, `WatchEngine`); this is kept in
+  settings with a **6 h TTL** (`BrokenStops`) and cleared on the first success.
+* **Fallback.** A watch on a broken stop polls the nearest *working* neighbours instead, **at most 2 calls per poll**:
+  the nearest earlier stop (upstream) and the nearest later stop (downstream). A stand-in that answers 5xx itself is
+  replaced on the next poll, 5 s later.
+  * **Departs-origin** uses the next working stop only (the bus leaving the origin shows up there).
+  * **Arrives / time-to-leave** build the target's ETA from the upstream ETA plus the scheduled GTFS travel time
+    (upstream→target); once the bus has left the upstream list, they use the downstream ETA minus the travel time
+    (target→downstream). Without GTFS times they fall back to distance along the route at 5 m/s. The freshest GPS fix
+    is kept. A bus whose fix, projected on the route, is more than 150 m past the target is treated as passed. This is
+    route-projected because straight lines are misleading on curvy legs.
+* **UI.** The watch screen and notification say `התחנה לא מדווחת ב-curlbus — מחשב לפי תחנת <name> (הערכה)`, derived
+  ETAs are marked `משוער לפי תחנה סמוכה`, and alerts carry a `הערכה` line. Broken stops stay selectable, with a
+  `הערכה` badge in the stop picker and the nearest-stop panel.
+* **Errors.** No raw exception text anywhere. Errors are short Hebrew messages (server / stop-specific server /
+  network / timeout / source / other), and the raw details go to logcat (`KavMonitor`). While retrying, the screen
+  and notification show `ממשיך לנסות · עדכון אחרון שהצליח: HH:MM`.
+* **Tests.** `StopFallbackTest` (jvm) covers the plan, travel times, ETA derivation, TTL persistence, the
+  2-error threshold, the engine switch and departs-via-next-stop. `FallbackUiTest` (Robolectric) replays recorded
+  curlbus answers (2026-10-06 from 17:58 IL, `fixtures/fallback_25141`) with 25141 and 27117 really answering 500.
+  It checks the friendly error, the switch to 20750 + 31492, that no false arrival fires for bus 7687869 (it passed
+  25141 at ~17:57:40, before the fallback could start), that Stop leaves zero requests, and the picker badge.
+  Screenshots are in `docs/screenshots/v0.3.1/`.
+
 ### What's new in v0.3
 
 * **"Time to leave" trigger (זמן לצאת)**, the third option next to departs/arrives. You pick a boarding stop

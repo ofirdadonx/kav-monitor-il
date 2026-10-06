@@ -10,6 +10,7 @@ import il.kavmonitor.shared.resources.leave_now
 import il.kavmonitor.shared.resources.leave_alerted
 import il.kavmonitor.shared.resources.leave_not_catchable
 import il.kavmonitor.shared.resources.leave_no_eta
+import il.kavmonitor.shared.resources.eta_estimated
 import il.kavmonitor.shared.resources.eta_live
 import il.kavmonitor.shared.resources.eta_scheduled
 
@@ -92,6 +93,8 @@ data class BusDetails(
     val etaLive: Boolean? = null,
     /** Observed departure from the origin (null unless actually observed). */
     val departedAt: Instant? = null,
+    /** [eta] derived from a neighbouring stop (watched stop not reported by curlbus). */
+    val etaEstimated: Boolean = false,
 )
 
 fun RouteBus.toDetails(targetStop: RouteStop?, originCode: String?, observedDeparture: Instant? = null): BusDetails = BusDetails(
@@ -156,6 +159,7 @@ fun BusView.toDetails(spec: WatchSpec, stops: List<RouteStop>?, observedDepartur
         leaveStatus = leaveStatus,
         etaLive = if (spec.trigger == TriggerType.LEAVE_FOR_STOP) hasFreshGps else null,
         departedAt = observedDeparture,
+        etaEstimated = etaEstimated,
     )
 }
 
@@ -242,7 +246,8 @@ fun BusDetailsCard(b: BusDetails, now: Instant, modifier: Modifier = Modifier) {
                         b.etaIsDeparture -> stringResource(Res.string.bus_dep_eta, clock, m)
                         m <= 0 -> stringResource(Res.string.bus_eta_at_now, isolate(b.etaStopName), clock)
                         else -> stringResource(Res.string.bus_eta_at, isolate(b.etaStopName), clock, m)
-                    } + (b.etaLive?.let { " · " + stringResource(if (it) Res.string.eta_live else Res.string.eta_scheduled) } ?: ""),
+                    } + (if (b.etaEstimated) " · " + stringResource(Res.string.eta_estimated) else "") +
+                        (b.etaLive?.let { " · " + stringResource(if (it) Res.string.eta_live else Res.string.eta_scheduled) } ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

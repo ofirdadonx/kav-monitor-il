@@ -158,4 +158,17 @@
     <string name="leave_no_eta">אין זמן הגעה משוער לתחנה</string>
     <string name="eta_live">חי (GPS)</string>
     <string name="eta_scheduled">לפי לוח הזמנים</string>
+    <string name="err_server_stop">שירות הנתונים (curlbus) לא מחזיר נתונים לתחנה %1$s</string>
+    <string name="err_server">שגיאת שרת בשירות הנתונים</string>
+    <string name="err_network">אין חיבור לאינטרנט</string>
+    <string name="err_timeout">השרת לא הגיב בזמן</string>
+    <string name="err_source">שירות הנתונים דיווח על תקלה זמנית</string>
+    <string name="err_other">שגיאה בקבלת הנתונים</string>
+    <string name="watch_retrying_since">ממשיך לנסות · עדכון אחרון שהצליח: %1$s</string>
+    <string name="watch_retrying_none">ממשיך לנסות · עדיין לא התקבל עדכון</string>
+    <string name="fallback_one">התחנה לא מדווחת ב-curlbus — מחשב לפי תחנת %1$s (הערכה)</string>
+    <string name="fallback_two">התחנה לא מדווחת ב-curlbus — מחשב לפי התחנות %1$s ו-%2$s (הערכה)</string>
+    <string name="fallback_departs">תחנת המוצא לא מדווחת ב-curlbus — מזהה יציאה לפי תחנת %1$s (הערכה, כדקה אחרי היציאה בפועל)</string>
+    <string name="eta_estimated">משוער לפי תחנה סמוכה</string>
+    <string name="badge_estimated">הערכה</string>
 </resources>

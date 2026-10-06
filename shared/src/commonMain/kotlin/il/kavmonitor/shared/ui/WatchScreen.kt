@@ -46,6 +46,11 @@ import il.kavmonitor.shared.resources.watch_alert_item
 import il.kavmonitor.shared.resources.watch_buses_header
 import il.kavmonitor.shared.resources.watch_buses_seen
 import il.kavmonitor.shared.resources.watch_error
+import il.kavmonitor.shared.resources.fallback_one
+import il.kavmonitor.shared.resources.fallback_two
+import il.kavmonitor.shared.resources.fallback_departs
+import il.kavmonitor.shared.resources.watch_retrying_none
+import il.kavmonitor.shared.resources.watch_retrying_since
 import il.kavmonitor.shared.resources.watch_last_update
 import il.kavmonitor.shared.resources.watch_no_buses
 import il.kavmonitor.shared.resources.watch_no_update_yet
@@ -127,12 +132,25 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                             WatchPhase.STOPPED -> stringResource(Res.string.watch_status_stopped)
                         },
                     )
-                    Text(
-                        state.lastSuccessAt?.let { stringResource(Res.string.watch_last_update, it.israelClock(withSeconds = true)) }
-                            ?: stringResource(Res.string.watch_no_update_yet),
-                    )
+                    val err = state.lastError
+                    if (err == null || !state.isActive) {
+                        Text(
+                            state.lastSuccessAt?.let { stringResource(Res.string.watch_last_update, it.israelClock(withSeconds = true)) }
+                                ?: stringResource(Res.string.watch_no_update_yet),
+                        )
+                    }
                     Text(stringResource(Res.string.watch_buses_seen, state.busesSeen) + " · " + stringResource(Res.string.watch_alerts, state.alerts.size))
-                    state.lastError?.let { Text(stringResource(Res.string.watch_error, it), color = MaterialTheme.colorScheme.error) }
+                    state.fallback?.let { fb ->
+                        Text(fallbackText(state.spec.trigger, fb), color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (err != null && state.isActive) {
+                        Text(errorText(err), color = MaterialTheme.colorScheme.error)
+                        Text(
+                            state.lastSuccessAt?.let { stringResource(Res.string.watch_retrying_since, it.israelClock(withSeconds = true)) }
+                                ?: stringResource(Res.string.watch_retrying_none),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             }
         }
@@ -169,7 +187,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         }
         // Nearest stop to the user (foreground location, only while the watch runs and this item is on screen).
         if (stops != null && state.isActive) {
-            item(key = "watch-nearest") { NearestStopSection(c.location, stops.stops, now, watchedStop = state.spec.stop) }
+            item(key = "watch-nearest") { NearestStopSection(c.location, stops.stops, now, watchedStop = state.spec.stop, isBroken = c::isStopBroken) }
         }
         item { HorizontalDivider() }
         if (!state.isActive) {
@@ -195,4 +213,15 @@ internal fun observedDepartures(state: WatchState?, snap: il.kavmonitor.shared.r
             .forEach { m[it.key] = it.at }
     }
     return m
+}
+
+@Composable
+internal fun fallbackText(trigger: TriggerType, fb: il.kavmonitor.shared.watch.FallbackPlan): String {
+    val up = fb.upstream
+    val down = fb.downstream
+    return when {
+        trigger == TriggerType.DEPARTS_ORIGIN && down != null -> stringResource(Res.string.fallback_departs, isolate(down.name))
+        up != null && down != null -> stringResource(Res.string.fallback_two, isolate(up.name), isolate(down.name))
+        else -> stringResource(Res.string.fallback_one, isolate((up ?: down)!!.name))
+    }
 }

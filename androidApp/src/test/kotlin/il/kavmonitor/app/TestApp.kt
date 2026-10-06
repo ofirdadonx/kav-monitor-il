@@ -33,7 +33,7 @@ import kotlin.time.Instant
 object TestConfig {
     var pollInterval: Duration = 2.seconds
     var routeLiveInterval: Duration = 3.seconds
-    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.setSpeed(1.0) }
+    fun reset() { pollInterval = 2.seconds; routeLiveInterval = 3.seconds; TestClock.reset(); FallbackReplay.active = false }
 }
 
 /** Wall clock that can run faster (time-out tests). */
@@ -43,6 +43,9 @@ object TestClock : Clock {
     @Volatile private var speed = 1.0
     override fun now(): Instant = Instant.fromEpochMilliseconds(anchorFake + ((System.currentTimeMillis() - anchorReal) * speed).toLong())
     @Synchronized fun setSpeed(s: Double) { val n = now().toEpochMilliseconds(); anchorReal = System.currentTimeMillis(); anchorFake = n; speed = s }
+    /** Jump to [t] (e.g. the time of a recording) and run at [s]× from there. */
+    @Synchronized fun set(t: Instant, s: Double = 1.0) { anchorReal = System.currentTimeMillis(); anchorFake = t.toEpochMilliseconds(); speed = s }
+    @Synchronized fun reset() { anchorReal = System.currentTimeMillis(); anchorFake = anchorReal; speed = 1.0 }
 }
 
 /** Every HTTP request the app makes (fixtures and live mode), for the "no request after Stop" assertions. */
@@ -82,8 +85,9 @@ class TestApp : KavMonitorApp() {
             TestHttp.record(host, path)
             val body = when (host) {
                 "stride.test" -> FixtureStride.respond(path, req.url.parameters)
-                "curlbus.test" -> if (path == "/20001") FakeCurlbus.next() else RouteReplay.stop(path.trim('/'))
-                "curlbus-route.test" -> RouteReplay.stop(path.trim('/'))
+                "curlbus.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/'))
+                    else if (path == "/20001") FakeCurlbus.next() else RouteReplay.stop(path.trim('/'))
+                "curlbus-route.test" -> if (FallbackReplay.active) FallbackReplay.stop(path.trim('/')) else RouteReplay.stop(path.trim('/'))
                 else -> null
             }
             if (body == null) respond("500 Internal Server Error", HttpStatusCode.InternalServerError)
@@ -184,4 +188,29 @@ object FakeCurlbus {
 
     @Synchronized
     fun next(): String { calls++; return queue.removeFirstOrNull() ?: last }
+}
+
+/**
+ * Replays the curlbus polls recorded live on 2026-10-06 18:00–18:48 around stop 25141 (which answered HTTP 500 the whole
+ * time, as did 27117): each request gets the newest recording at or before [TestClock] (set to the recording's time,
+ * running faster), unshifted. Stops without a recording → HTTP 500.
+ */
+object FallbackReplay {
+    @Volatile var active = false
+    private val files: Map<String, List<Pair<Instant, String>>> by lazy {
+        val dir = File(requireNotNull(TestApp::class.java.getResource("/fixtures/fallback_25141")).toURI())
+        dir.listFiles()!!.filter { it.isDirectory }.associate { d ->
+            d.name to d.listFiles()!!.filter { it.name.endsWith(".json") }.sortedBy { it.name }.map { f ->
+                val n = f.name.removeSuffix(".json")
+                Instant.parse("2026-10-06T${n.substring(0, 2)}:${n.substring(2, 4)}:${n.substring(4, 6)}+03:00") to f.readText()
+            }
+        }
+    }
+    /** Time of the last recording of [code] (the replay "ends" there). */
+    fun recordedUntil(code: String): Instant? = files[code]?.lastOrNull()?.first
+    fun stop(code: String): String? {
+        val list = files[code] ?: return null
+        val now = TestClock.now()
+        return (list.lastOrNull { it.first <= now } ?: list.first()).second
+    }
 }

@@ -14,8 +14,8 @@ android {
         applicationId = "il.kavmonitor.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 3
-        versionName = "0.3"
+        versionCode = 4
+        versionName = "0.3.1"
     }
 
     // Release channel. beta: separate app next to the regular one (".beta" id, own label + orange BETA icon),

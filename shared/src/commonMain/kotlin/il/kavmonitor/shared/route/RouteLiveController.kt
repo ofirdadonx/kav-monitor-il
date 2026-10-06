@@ -101,7 +101,8 @@ class RouteLiveController(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state!!.copy(loading = false, error = e.message?.lineSequence()?.firstOrNull()?.take(120) ?: e::class.simpleName)
+                il.kavmonitor.shared.data.ErrorLog.w("route view refresh failed", e)
+                state!!.copy(loading = false, error = il.kavmonitor.shared.data.FetchErrors.classify(e).kind.name)
             }
             refreshes++
             delay(interval)

@@ -65,7 +65,7 @@ class WatchService : Service() {
             this, Notifications.ID_STATUS, Notifications.status(this, spec, null),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
         )
-        val engine = WatchEngine(app.graph.live, clock = app.graph.clock, config = app.graph.triggerConfig)
+        val engine = app.graph.newWatchEngine()
         synchronized(lock) {
             job?.cancel() // replace a running watch: never two pollers
             val gen = ++generation
@@ -79,7 +79,7 @@ class WatchService : Service() {
                             if (st.isActive) Notifications.updateStatus(this@WatchService, spec, st)
                         }
                     },
-                    onTrigger = { ev, _ -> ifCurrent(gen) { Notifications.alert(this@WatchService, spec, ev) } },
+                    onTrigger = { ev, st -> ifCurrent(gen) { Notifications.alert(this@WatchService, spec, ev, estimated = st.fallback != null) } },
                 )
                 // Time limit reached.
                 ifCurrent(gen) {

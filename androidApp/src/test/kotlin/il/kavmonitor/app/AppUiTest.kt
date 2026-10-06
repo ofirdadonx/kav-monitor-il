@@ -63,7 +63,7 @@ class AppUiTest {
 
     private val app get() = ApplicationProvider.getApplicationContext<TestApp>()
     private val nm get() = app.getSystemService(NotificationManager::class.java)
-    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.3/flow_live" else "../docs/screenshots/v0.3/flow_replay").apply { mkdirs() }
+    private val outDir = File(if (TestApp.LIVE) "../docs/screenshots/v0.3.1/flow_live" else "../docs/screenshots/v0.3.1/flow_replay").apply { mkdirs() }
     private val notifLog = StringBuilder()
     private val timeout = if (TestApp.LIVE) 90_000L else 15_000L
 
@@ -113,7 +113,7 @@ class AppUiTest {
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
         waitForText("מעקב חדש")
-        assertTrue(has("v0.3-beta"))
+        assertTrue(has("v0.3.1-beta"))
         shot("01_home_empty")
 
         // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches

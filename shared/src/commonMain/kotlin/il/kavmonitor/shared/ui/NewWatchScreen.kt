@@ -187,6 +187,7 @@ fun NewWatchScreen(c: AppController) {
                                     else c.trigger == TriggerType.ARRIVES_AT_STOP && c.targetStopCode == n.stop.code
                                 },
                                 onUse = { c.useNearestStop(it) },
+                                isBroken = c::isStopBroken,
                             )
                         }
                         val target = if (c.trigger != TriggerType.DEPARTS_ORIGIN) list.stops.firstOrNull { it.code == c.targetStopCode } else null
@@ -217,6 +218,7 @@ fun NewWatchScreen(c: AppController) {
                                     selected = c.targetStopCode == stop.code,
                                     text = stringResource(Res.string.stop_item, stop.sequence, stop.name),
                                     sub = listOfNotNull(stop.city, stringResource(Res.string.stop_code, stop.code)).joinToString(" · "),
+                                    estimated = c.isStopBroken(stop.code),
                                 ) { c.targetStopCode = stop.code }
                             }
                         }
@@ -344,11 +346,14 @@ private fun DurationPicker(c: AppController) {
 }
 
 @Composable
-private fun RadioRow(selected: Boolean, text: String, sub: String? = null, onClick: () -> Unit) {
+private fun RadioRow(selected: Boolean, text: String, sub: String? = null, estimated: Boolean = false, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onClick() }, verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selected, onClick = onClick)
         Column {
-            Text(text)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(text, modifier = Modifier.weight(1f, fill = false))
+                if (estimated) EstimatedBadge()
+            }
             if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -362,7 +367,7 @@ internal fun Loading() {
 @Composable
 private fun ErrorRow(message: String, onRetry: () -> Unit) {
     Column {
-        Text(stringResource(Res.string.error_prefix, message), color = MaterialTheme.colorScheme.error)
+        Text(stringResource(Res.string.error_prefix, errorText(message)), color = MaterialTheme.colorScheme.error)
         TextButton(onClick = onRetry) { Text(stringResource(Res.string.retry)) }
     }
 }

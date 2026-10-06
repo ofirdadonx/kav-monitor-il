@@ -8,6 +8,8 @@ import kotlin.time.Duration.Companion.seconds
 data class TriggerConfig(
     /** Poll period: one curlbus call per poll. */
     val pollInterval: Duration = 35.seconds,
+    /** Retry delay after an HTTP 5xx from the watched stop (to confirm it's broken and switch to stand-in stops quickly). */
+    val serverErrorRetry: Duration = 5.seconds,
     /** A GPS fix older than this is not used for any decision. */
     val gpsFreshMaxAge: Duration = 3.minutes,
 

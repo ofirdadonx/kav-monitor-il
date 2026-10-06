@@ -25,6 +25,8 @@ data class BusView(
     /** LEAVE_FOR_STOP: when to leave for this bus (ETA − walk − buffer) and whether it can still be caught. */
     val leaveAt: Instant? = null,
     val leaveStatus: LeaveStatus? = null,
+    /** ETA derived from a neighbouring stop (the watched stop isn't reported by curlbus). */
+    val etaEstimated: Boolean = false,
 )
 
 data class WatchState(
@@ -34,14 +36,16 @@ data class WatchState(
     val endsAt: Instant,
     val lastAttemptAt: Instant? = null,
     val lastSuccessAt: Instant? = null,
-    /** Error of the most recent poll (null when the last poll succeeded). */
-    val lastError: String? = null,
+    /** Error of the most recent poll (null when the last poll succeeded). Raw details are only logged. */
+    val lastError: il.kavmonitor.shared.data.FetchError? = null,
     val buses: List<BusView> = emptyList(),
     val busesSeen: Int = 0,
     val alerts: List<TriggerEvent> = emptyList(),
     val polls: Int = 0,
     /** LEAVE_FOR_STOP: walk plan used on the last poll. */
     val leavePlan: LeavePlan? = null,
+    /** Set when the watched stop is broken on curlbus and neighbouring stops stand in for it. */
+    val fallback: FallbackPlan? = null,
 ) {
     /** LEAVE_FOR_STOP: the next bus that can still be caught and hasn't been alerted yet (earliest ETA). */
     val nextLeaveBus: BusView?

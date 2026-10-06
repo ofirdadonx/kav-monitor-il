@@ -1,7 +1,10 @@
 package il.kavmonitor.shared
 
 import com.russhwolf.settings.Settings
+import il.kavmonitor.shared.data.BrokenStopTracker
+import il.kavmonitor.shared.data.BrokenStops
 import il.kavmonitor.shared.data.CurlbusLiveDataSource
+import il.kavmonitor.shared.watch.WatchEngine
 import il.kavmonitor.shared.data.LiveDataSource
 import il.kavmonitor.shared.data.RouteRepository
 import il.kavmonitor.shared.data.StaticDataSource
@@ -37,9 +40,18 @@ class AppGraph(
     val locationProvider: LocationProvider = NoLocationProvider,
 ) {
     val routes = RouteRepository(static, clock)
+    /** curlbus stops answering HTTP 5xx, remembered for [BrokenStops.DEFAULT_TTL]. */
+    val brokenStops = BrokenStops(settings, clock)
+    private val trackedLive: LiveDataSource = BrokenStopTracker(live, brokenStops)
+    private val trackedRouteLive: LiveDataSource = if (routeLiveSource === live) trackedLive else BrokenStopTracker(routeLiveSource, brokenStops)
+
+    /** Engine for one watch run (the service creates one per watch). Falls back to neighbouring stops for broken ones. */
+    fun newWatchEngine(): WatchEngine = WatchEngine(trackedLive, clock, triggerConfig, brokenStops) { spec ->
+        routes.stopsForLine(spec.lineRef, spec.lineName).stops
+    }
     val recents = RecentsStore(settings)
     val location = LocationController(locationProvider, settings)
     val controller: AppController by lazy {
-        AppController(routes, recents, launcher, routeLiveSource, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location)
+        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops)
     }
 }

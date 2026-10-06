@@ -14,7 +14,15 @@
     <string name="notif_status_arrives">הגעה ל%1$s</string>
     <string name="notif_status_line">עודכן %1$s · נראו %2$d · עד %3$s</string>
     <string name="notif_status_waiting">ממתין לעדכון ראשון… · עד %1$s</string>
-    <string name="notif_status_error">שגיאה: %1$s (ממשיך לנסות)</string>
+    <string name="notif_status_error">%1$s · ממשיך לנסות (עדכון אחרון: %2$s)</string>
+    <string name="notif_status_error_none">%1$s · ממשיך לנסות</string>
+    <string name="notif_err_server_stop">שירות הנתונים לא מחזיר נתונים לתחנה %1$s</string>
+    <string name="notif_err_server">שגיאת שרת בשירות הנתונים</string>
+    <string name="notif_err_network">אין חיבור לאינטרנט</string>
+    <string name="notif_err_timeout">השרת לא הגיב בזמן</string>
+    <string name="notif_err_source">שירות הנתונים דיווח על תקלה זמנית</string>
+    <string name="notif_err_other">שגיאה בקבלת הנתונים</string>
+    <string name="notif_fallback">הערכה לפי תחנה סמוכה (התחנה לא מדווחת)</string>
     <string name="notif_action_stop">עצור</string>
     <string name="notif_status_leave">זמן לצאת ל%1$s</string>
     <string name="notif_leave_next">צאו ב-%1$s (בעוד %2$d דק׳) · האוטובוס ב-%3$s %4$s</string>
@@ -26,7 +34,8 @@
     <!-- Alert notification -->
     <string name="alert_departed_title">קו %1$s יצא מ%2$s!</string>
     <string name="alert_arrived_title">קו %1$s מגיע ל%2$s!</string>
-    <string name="alert_body">רכב %1$s · יציאה מתוכננת %2$s · זמן לצאת לתחנה</string>
+    <string name="alert_body">רכב %1$s · יציאה מתוכננת מהמוצא %2$s</string>
+    <string name="alert_estimated">הערכה: התחנה לא מדווחת ב-curlbus, חושב לפי תחנה סמוכה</string>
     <string name="alert_leave_title">צא עכשיו — %1$s מגיע ל%2$s ב-%3$s</string>
     <string name="alert_leave_body">רכב %1$s · הליכה %2$d דק׳ + מרווח %3$d דק׳ · זמן הגעה %4$s</string>
     <string name="alert_eta_live">חי (GPS)</string>

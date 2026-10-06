@@ -73,7 +73,7 @@ class NearestLeaveUiTest {
     private val lm get() = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private val nm get() = app.getSystemService(NotificationManager::class.java)
     private val c get() = app.graph.controller
-    private val outDir = File("../docs/screenshots/v0.3").apply { mkdirs() }
+    private val outDir = File("../docs/screenshots/v0.3.1/nearest_leave").apply { mkdirs() }
     private val log = sharedLog
     private val timeout = 15_000L
 

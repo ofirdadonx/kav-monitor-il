@@ -57,7 +57,20 @@ class AppController(
     val appVersion: String = "",
     /** Foreground location for the "nearest stop" sections. */
     val location: LocationController = LocationController(NoLocationProvider, settings = null),
+    /** Stops curlbus can't answer: shown with an "estimated" badge in the pickers (a watch falls back to neighbours). */
+    val brokenStops: il.kavmonitor.shared.data.BrokenStops = il.kavmonitor.shared.data.BrokenStops(null),
 ) {
+    /** Loadable.Failed carries an [il.kavmonitor.shared.data.ErrorKind] name; the raw text only goes to the log. */
+    private fun friendlyFailure(e: Exception): String {
+        il.kavmonitor.shared.data.ErrorLog.w("load failed", e)
+        return il.kavmonitor.shared.data.FetchErrors.classify(e).kind.name
+    }
+
+    fun isStopBroken(code: String): Boolean {
+        brokenStops.version // observe
+        return brokenStops.isBroken(code)
+    }
+
     var screen by mutableStateOf(Screen.HOME); private set
 
     /** Live route view (foreground only; see [RouteLiveController]). */
@@ -123,7 +136,7 @@ class AppController(
                 directionStops.remove(d.lineRef)
                 throw e
             } catch (e: Exception) {
-                Loadable.Failed(e.message?.take(120) ?: "error")
+                Loadable.Failed(friendlyFailure(e))
             }
             directionStops[d.lineRef] = result
         }
@@ -140,7 +153,7 @@ class AppController(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Loadable.Failed(e.message?.take(120) ?: "error")
+                Loadable.Failed(friendlyFailure(e))
             }
         }
     }
@@ -261,7 +274,7 @@ class AppController(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                set(Loadable.Failed(e.message?.lineSequence()?.firstOrNull()?.take(160) ?: e::class.simpleName.orEmpty()))
+                set(Loadable.Failed(friendlyFailure(e)))
             }
         }
     }

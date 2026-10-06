@@ -69,6 +69,8 @@ fun NearestStopSection(
     isSelected: (NearestStop) -> Boolean = { false },
     onUse: ((NearestStop) -> Unit)? = null,
     watchedStop: RouteStop? = null,
+    /** Stops curlbus doesn't report get an "estimated" badge. */
+    isBroken: (String) -> Boolean = { false },
 ) {
     DisposableEffect(location) {
         val token = location.attach()
@@ -100,7 +102,14 @@ fun NearestStopSection(
                         if (n == null) {
                             Text(stringResource(Res.string.nearest_no_coords), style = MaterialTheme.typography.bodySmall, color = muted)
                         } else {
-                            Text(stringResource(Res.string.stop_item, n.stop.sequence, isolate(n.stop.name)), style = MaterialTheme.typography.bodyLarge)
+                            androidx.compose.foundation.layout.Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(stringResource(Res.string.stop_item, n.stop.sequence, isolate(n.stop.name)), style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f, fill = false))
+                                if (isBroken(n.stop.code)) EstimatedBadge()
+                            }
                             Text(listOfNotNull(n.stop.city, stringResource(Res.string.stop_code, n.stop.code)).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall, color = muted)
                             Text(stringResource(Res.string.nearest_distance, distanceText(n.distanceMeters)), style = MaterialTheme.typography.bodyMedium)

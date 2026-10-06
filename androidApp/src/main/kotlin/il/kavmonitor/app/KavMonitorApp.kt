@@ -13,6 +13,8 @@ open class KavMonitorApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // raw error details (exception text) go to logcat only; the UI shows short Hebrew messages
+        il.kavmonitor.shared.data.ErrorLog.sink = { msg, e -> android.util.Log.w("KavMonitor", msg, e) }
         Notifications.createChannels(this)
         graph = createGraph()
     }

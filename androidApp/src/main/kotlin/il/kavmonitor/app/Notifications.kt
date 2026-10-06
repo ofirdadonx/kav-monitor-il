@@ -92,7 +92,13 @@ object Notifications {
         }
         val leave = leaveLine(context, spec, state)
         val main = leave?.first?.let { it + "\n" + line } ?: line
-        val text = state?.lastError?.let { context.getString(R.string.notif_status_error, it) + "\n" + main } ?: main
+        val withFallback = if (state?.fallback != null) main + "\n" + context.getString(R.string.notif_fallback) else main
+        val text = state?.lastError?.let { err ->
+            val msg = errorText(context, err)
+            val line = state.lastSuccessAt?.let { context.getString(R.string.notif_status_error, msg, it.israelClock(true)) }
+                ?: context.getString(R.string.notif_status_error_none, msg)
+            line + "\n" + withFallback
+        } ?: withFallback
         val stop = PendingIntent.getService(
             context, 1, WatchService.stopIntent(context), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -118,7 +124,7 @@ object Notifications {
 
     fun updateStatus(context: Context, spec: WatchSpec, state: WatchState) = notify(context, ID_STATUS, status(context, spec, state))
 
-    fun alert(context: Context, spec: WatchSpec, event: TriggerEvent) {
+    fun alert(context: Context, spec: WatchSpec, event: TriggerEvent, estimated: Boolean = false) {
         val title = when (event.reason) {
             TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS, TriggerReason.LEFT_ORIGIN_SCHEDULED ->
                 context.getString(R.string.alert_departed_title, spec.lineName, spec.origin.name)
@@ -127,7 +133,7 @@ object Notifications {
             TriggerReason.LEAVE_NOW ->
                 context.getString(R.string.alert_leave_title, spec.lineName, spec.stop.name, event.eta?.israelClock() ?: "—")
         }
-        val body = if (event.reason == TriggerReason.LEAVE_NOW) {
+        val base = if (event.reason == TriggerReason.LEAVE_NOW) {
             val lead = event.leadMinutes ?: spec.leave?.leadMinutes ?: 0
             val buffer = spec.leave?.bufferMinutes ?: 0
             context.getString(
@@ -137,6 +143,7 @@ object Notifications {
         } else {
             context.getString(R.string.alert_body, event.vehicleRef ?: "—", event.scheduledDeparture?.israelClock() ?: "—")
         }
+        val body = base + if (estimated) "\n" + context.getString(R.string.alert_estimated) else ""
         val n = NotificationCompat.Builder(context, CHANNEL_ALERT)
             .setSmallIcon(R.drawable.ic_stat_bus)
             .setContentTitle(title)
@@ -171,4 +178,14 @@ object Notifications {
         ) return
         NotificationManagerCompat.from(context).notify(id, n)
     }
+}
+
+/** Short Hebrew text for a poll error (raw details only in logcat). */
+internal fun errorText(context: Context, err: il.kavmonitor.shared.data.FetchError): String = when (err.kind) {
+    il.kavmonitor.shared.data.ErrorKind.SERVER -> err.stopCode?.let { context.getString(R.string.notif_err_server_stop, it) }
+        ?: context.getString(R.string.notif_err_server)
+    il.kavmonitor.shared.data.ErrorKind.NETWORK -> context.getString(R.string.notif_err_network)
+    il.kavmonitor.shared.data.ErrorKind.TIMEOUT -> context.getString(R.string.notif_err_timeout)
+    il.kavmonitor.shared.data.ErrorKind.SOURCE -> context.getString(R.string.notif_err_source)
+    il.kavmonitor.shared.data.ErrorKind.OTHER -> context.getString(R.string.notif_err_other)
 }

@@ -19,7 +19,12 @@ class CurlbusLiveDataSource(
     private val clock: Clock = Clock.System,
 ) : LiveDataSource {
     override suspend fun stopVisits(stopCode: String): StopSnapshot {
-        val body = client.get("$baseUrl/$stopCode").bodyAsText()
+        val body = try {
+            client.get("$baseUrl/$stopCode").bodyAsText()
+        } catch (e: io.ktor.client.plugins.ServerResponseException) {
+            // HTTP 5xx for this stop (some stops answer 500 all the time): typed, so callers can fall back
+            throw StopServerException(stopCode, e.response.status.value, e)
+        }
         return CurlbusParser.parse(body, stopCode, clock.now())
     }
 }

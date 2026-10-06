@@ -65,7 +65,7 @@ fun LazyListScope.routeLiveItems(
                     )
                 }
             }
-            state?.error?.let { Text(stringResource(Res.string.route_live_error, it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            state?.error?.let { Text(stringResource(Res.string.route_live_error, errorText(it)), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }
     val snap = state?.snapshot ?: return
