@@ -23,7 +23,7 @@ jobs:
 
       - uses: android-actions/setup-android@v4
         with:
-          packages: platforms;android-37 platform-tools
+          packages: platforms;android-37.0 platform-tools
 
       - name: Decode release keystore
         env:
