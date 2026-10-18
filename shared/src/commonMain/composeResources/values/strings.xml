@@ -4,9 +4,9 @@
 
     <!-- Home -->
     <string name="home_title">מעקב קו</string>
-    <string name="home_new_watch">מעקב חדש</string>
+    <string name="home_new_watch">חיפוש קו</string>
     <string name="home_recents">אחרונים</string>
-    <string name="home_no_recents">אין עדיין מעקבים אחרונים. התחילו מעקב חדש.</string>
+    <string name="home_no_recents">אין עדיין מעקבים אחרונים. התחילו בחיפוש קו.</string>
     <string name="home_active_watch">מעקב פעיל</string>
     <string name="home_open_watch">פתח</string>
     <string name="recent_remove">הסר</string>
@@ -20,7 +20,7 @@
     <string name="duration_minutes">%1$d דק׳</string>
 
     <!-- New watch -->
-    <string name="new_watch_title">מעקב חדש</string>
+    <string name="new_watch_title">חיפוש קו</string>
     <string name="line_number_hint">מספר קו</string>
     <string name="search">חפש</string>
     <string name="loading">טוען…</string>
@@ -136,7 +136,7 @@
     <string name="reason_at_stop_eta">מגיע בעוד פחות מדקה</string>
     <string name="reason_dropped_at_stop">הגיע לתחנה</string>
     <string name="reason_leave_now">זמן לצאת לתחנה</string>
-    <string name="new_watch_again">מעקב חדש</string>
+    <string name="new_watch_again">חיפוש קו</string>
     <!-- Live route view -->
     <string name="route_live_title">על הקו עכשיו</string>
     <string name="route_live_active">%1$d אוטובוסים פעילים</string>

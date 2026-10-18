@@ -35,7 +35,7 @@ class AppGraph(
     val live: LiveDataSource = CurlbusLiveDataSource(httpClient),
     val triggerConfig: TriggerConfig = TriggerConfig.Default,
     val clock: Clock = Clock.System,
-    /** Full version name shown in the UI (e.g. "0.2-beta"). */
+    /** Full version name shown in the UI (e.g. "0.7"). */
     val appVersion: String = "",
     val routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
     /** Live source of the foreground route view (same backend as [live]; separate so tests can tell them apart). */

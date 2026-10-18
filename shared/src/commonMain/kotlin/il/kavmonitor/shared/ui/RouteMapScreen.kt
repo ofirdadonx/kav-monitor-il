@@ -2,17 +2,14 @@ package il.kavmonitor.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
@@ -54,26 +51,28 @@ fun RouteMapScreen(c: AppController) {
     val st = c.mapLive.state?.takeIf { req != null && it.request.lineRef == req.lineRef }
     val snap = st?.snapshot
     val fix = c.location.fix?.takeIf { c.location.access == LocationAccess.GRANTED }
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { c.closeMap() }) { Text("→ " + stringResource(Res.string.map_close)) }
-            Text(stringResource(Res.string.map_title, c.mapTitle), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        }
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                if (snap == null) stringResource(Res.string.map_loading)
-                else stringResource(Res.string.map_status, snap.fetchedAt.israelClock(withSeconds = true), snap.mapBuses().size, Polling.INTERVAL.inWholeSeconds.toInt()),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            st?.error?.let { Text(errorText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-            Text(stringResource(Res.string.map_legend), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(Res.string.map_path_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (req != null) {
-            RouteMapView(
-                RouteMapData(req.stops, highlightCode = req.targetStopCode, userLat = fix?.lat, userLon = fix?.lon, buses = snap?.mapBuses().orEmpty()),
-                Modifier.fillMaxWidth().weight(1f).padding(top = 6.dp).clipToBounds(),
-            )
+    ScreenFrame(
+        title = stringResource(Res.string.map_title, c.mapTitle),
+        onBack = { c.closeMap() },
+        backDescription = stringResource(Res.string.map_close),
+    ) { inner ->
+        Column(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner)) {
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    if (snap == null) stringResource(Res.string.map_loading)
+                    else stringResource(Res.string.map_status, snap.fetchedAt.israelClock(withSeconds = true), snap.mapBuses().size, Polling.INTERVAL.inWholeSeconds.toInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                st?.error?.let { Text(errorText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                Text(stringResource(Res.string.map_legend), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.map_path_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (req != null) {
+                RouteMapView(
+                    RouteMapData(req.stops, highlightCode = req.targetStopCode, userLat = fix?.lat, userLon = fix?.lon, buses = snap?.mapBuses().orEmpty()),
+                    Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).clipToBounds(),
+                )
+            }
         }
     }
 }

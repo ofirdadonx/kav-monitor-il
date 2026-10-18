@@ -57,7 +57,7 @@ class RouteLiveLifecycleTest {
 
     @Test
     fun refreshOnlyWhileScreenVisible() {
-        click("מעקב חדש")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
         click("חפש", sub = false)
         compose.waitReal(15_000) { has("ת. רכבת תל אביב- סבידור/רציפים A") }

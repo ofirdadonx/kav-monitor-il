@@ -56,7 +56,7 @@ class AppController(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
     val clock: Clock = Clock.System,
     routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
-    /** Full version name shown in the UI, e.g. "0.2-beta". */
+    /** Full version name shown in the UI, e.g. "0.7". */
     val appVersion: String = "",
     /** Foreground location for the "nearest stop" sections. */
     val location: LocationController = LocationController(NoLocationProvider, settings = null),

@@ -20,7 +20,8 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.KavMonitor"
-        android:localeConfig="@xml/locales_config">
+        android:localeConfig="@xml/locales_config"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"

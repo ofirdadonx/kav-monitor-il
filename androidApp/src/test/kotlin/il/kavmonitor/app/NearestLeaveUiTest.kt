@@ -118,8 +118,8 @@ class NearestLeaveUiTest {
     private val listeners get() = shadowOf(lm).locationUpdateListeners.size
 
     private fun openDirection194() {
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")

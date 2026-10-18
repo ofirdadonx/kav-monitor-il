@@ -115,8 +115,8 @@ class FollowBusUiTest {
 
     @Test
     fun followOneBus() {
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
@@ -181,7 +181,7 @@ class FollowBusUiTest {
         note("left the screen while following: no route requests")
 
         // 5. back on the line: unfollow from the card
-        click("מעקב חדש")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")

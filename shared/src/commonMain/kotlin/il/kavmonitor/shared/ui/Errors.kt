@@ -1,13 +1,19 @@
 package il.kavmonitor.shared.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import il.kavmonitor.shared.resources.error_prefix
+import il.kavmonitor.shared.resources.retry
 import il.kavmonitor.shared.data.ErrorKind
 import il.kavmonitor.shared.data.FetchError
 import il.kavmonitor.shared.resources.Res
@@ -35,10 +41,26 @@ fun errorText(err: FetchError): String = when (err.kind) {
 fun errorText(kindName: String): String =
     errorText(FetchError(ErrorKind.entries.firstOrNull { it.name == kindName } ?: ErrorKind.OTHER))
 
+/** Full-width error: container color carries the state, the action sits inside it. */
+@Composable
+internal fun ErrorNotice(message: String, onRetry: (() -> Unit)? = null) {
+    val onContainer = MaterialTheme.colorScheme.onErrorContainer
+    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(Res.string.error_prefix, errorText(message)), style = MaterialTheme.typography.bodyMedium, color = onContainer)
+            if (onRetry != null) {
+                TextButton(onClick = onRetry, colors = ButtonDefaults.textButtonColors(contentColor = onContainer)) {
+                    Text(stringResource(Res.string.retry))
+                }
+            }
+        }
+    }
+}
+
 /** Small "estimated" badge for stops curlbus doesn't report (the watch derives them from neighbouring stops). */
 @Composable
 fun EstimatedBadge(modifier: Modifier = Modifier) {
-    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(6.dp), modifier = modifier) {
-        Text(stringResource(Res.string.badge_estimated), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp))
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.extraSmall, modifier = modifier) {
+        Text(stringResource(Res.string.badge_estimated), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
     }
 }

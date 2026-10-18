@@ -121,8 +121,8 @@ abstract class WatchV06Screens(private val theme: String) {
     }
 
     private fun openDirection194() {
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
@@ -358,7 +358,7 @@ class WatchCountdownUiTest {
 
     @Test
     fun heroCountsDownBetweenPollsWithoutRequests() {
-        click("מעקב חדש")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)

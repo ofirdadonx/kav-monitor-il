@@ -112,7 +112,7 @@ class NearbyStopUiTest {
     @Test
     fun nearbyStops_stopScreen_lineToNewWatch_routeView() {
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        waitFor("מעקב חדש")
+        waitFor("חיפוש קו")
         // the activity was started (rule) before the grant: re-check like onStart does when the user comes back
         compose.runOnUiThread { c.location.setAppVisible(true) }
         setLocation(AZRIELI)

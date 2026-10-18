@@ -102,8 +102,8 @@ class FallbackUiTest {
     }
 
     private fun startArrivesWatchAt25141(beforeStart: () -> Unit = {}): ServiceController<WatchService> {
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
@@ -208,8 +208,8 @@ class FallbackUiTest {
         assertEquals("no watch HTTP after Stop", before, TestHttp.count("curlbus.test"))
 
         // new watch: the stop picker marks the broken stops as estimated
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
