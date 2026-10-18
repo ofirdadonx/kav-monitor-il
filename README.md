@@ -1,5 +1,7 @@
 # kav-monitor-il
 
+[![CI](https://github.com/ofirdadonx/kav-monitor-il/actions/workflows/ci.yml/badge.svg)](https://github.com/ofirdadonx/kav-monitor-il/actions/workflows/ci.yml)
+
 Hebrew Android app (מעקב קו) for Israeli bus lines. Pick a line and direction, then get a loud notification when the bus leaves its origin, reaches a stop you choose, or when it is time to leave home to catch it.
 
 Each watch runs in the foreground for a limited time (default 60 minutes). The last five setups are kept as one-tap recents.
@@ -36,6 +38,12 @@ Screenshots are from 0.6. The current release is **0.7** (Material 3). See [CHAN
 The APK is copied to `androidApp/build/outputs/named/kav-monitor-0.7.apk`. It is a debug build, signed with the local debug key. Install with `adb install -r` on that file, or copy it to the phone.
 
 Release signing uses `KAV_KEYSTORE`, `KAV_KEYSTORE_PASSWORD`, `KAV_KEY_ALIAS`, and `KAV_KEY_PASSWORD`. Without them, `assembleRelease` stays unsigned.
+
+## CI and releases
+
+Pull requests and pushes to `main` run the unit tests and a debug build (`.github/workflows/ci.yml`).
+
+Pushing a tag `v<version>` publishes a signed APK on [GitHub Releases](https://github.com/ofirdadonx/kav-monitor-il/releases). The tag has to match `versionName` in `androidApp/build.gradle.kts` and a `## <version>` section in [CHANGELOG.md](CHANGELOG.md). The release job needs these repository secrets: `KAV_KEYSTORE_BASE64`, `KAV_KEYSTORE_PASSWORD`, `KAV_KEY_ALIAS`, `KAV_KEY_PASSWORD`.
 
 ## Tests
 
