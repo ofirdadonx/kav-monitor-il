@@ -32,6 +32,9 @@ class RouteRepository(
         return shared(directionsCache, "$line@${today()}") { static.directions(line, today()) }
     }
 
+    /** Next published departure for this direction, or null when the feed has none. */
+    suspend fun nextDeparture(lineRef: Int): NextDeparture? = static.nextDeparture(lineRef, today(), clock.now())
+
     suspend fun stops(direction: Direction): StopList =
         shared(stopsCache, "${direction.lineRef}@${direction.date}") { static.stops(direction) }
 

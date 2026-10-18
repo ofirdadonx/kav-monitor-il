@@ -6,6 +6,7 @@ import android.location.Location
 import android.location.LocationManager
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -115,10 +116,9 @@ class FollowBusUiTest {
 
     @Test
     fun followOneBus() {
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("נתונים מ-")
@@ -150,7 +150,7 @@ class FollowBusUiTest {
         note("card: $card")
         assertTrue(card, card.contains("עוקב אחרי"))
         assertTrue(card, Regex("מגיע ל.*(בעוד \\d+ דק׳|עכשיו)").containsMatchIn(card))
-        assertTrue(card, card.contains("ממך · בקו אווירי"))
+        assertFalse(card, card.contains("בקו אווירי"))
         assertTrue(card, card.contains("תחנה הבאה:"))
         assertTrue(card, card.contains("מיקום עודכן לפני"))
         assertFalse("no trip id on the card", card.contains("_061026"))
@@ -181,9 +181,8 @@ class FollowBusUiTest {
         note("left the screen while following: no route requests")
 
         // 5. back on the line: unfollow from the card
-        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         compose.waitReal(timeout) { hasTag("follow-card") || runCatching { scrollToTag("follow-card") }.isSuccess }

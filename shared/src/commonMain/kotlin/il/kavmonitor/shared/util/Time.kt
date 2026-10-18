@@ -5,6 +5,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -15,6 +16,8 @@ fun Instant.israelDate(): LocalDate = toLocalDateTime(IsraelTz).date
 fun todayInIsrael(clock: Clock = Clock.System): LocalDate = clock.now().israelDate()
 
 fun LocalDate.minusDays(n: Int): LocalDate = this.minus(DatePeriod(days = n))
+
+fun LocalDate.plusDays(n: Int): LocalDate = this.plus(DatePeriod(days = n))
 
 /** "HH:mm" (or "HH:mm:ss") in Israel time. */
 fun Instant.israelClock(withSeconds: Boolean = false): String {

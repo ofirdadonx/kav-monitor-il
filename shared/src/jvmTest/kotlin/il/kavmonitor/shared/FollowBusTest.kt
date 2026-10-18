@@ -90,7 +90,7 @@ class FollowBusTest {
         assertEquals("20750", info.nextStop?.code)
         assertTrue(FollowTexts.headline(info, now).endsWith("בעוד 3 דק׳ (הערכה)"), FollowTexts.headline(info, now))
         val details = FollowTexts.details(info, now)
-        assertTrue(details.any { it.endsWith("מ׳ ממך · בקו אווירי") }, details.toString())
+        assertTrue(details.none { it.contains("בקו אווירי") }, details.toString())
         assertTrue(details.any { it == "מיקום עודכן לפני 46 שנ׳" }, details.toString())
         assertEquals("1.2 ק״מ", FollowTexts.distance(1234.0))
         assertEquals("380 מ׳", FollowTexts.distance(380.4))

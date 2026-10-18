@@ -9,6 +9,7 @@ import android.location.Location
 import android.location.LocationManager
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -118,10 +119,9 @@ class NearestLeaveUiTest {
     private val listeners get() = shadowOf(lm).locationUpdateListeners.size
 
     private fun openDirection194() {
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("התחנה הקרובה אליך במסלול")
@@ -147,8 +147,8 @@ class NearestLeaveUiTest {
 
         // 1. Near Savidor → the origin, straight-line distance
         setLocation(SAVIDOR)
-        waitFor("ממך בקו אווירי")
-        assertTrue(has("מ׳ ממך בקו אווירי"))
+        waitFor("נבחרה כתחנת ההתראה")
+        assertFalse(has("בקו אווירי"))
         assertTrue("origin already is the departs stop", has("נבחרה כתחנת ההתראה"))
         note("near Savidor: nearest=${c.location.fix} → 20001")
         shot("01_nearest_stop_near_savidor")
@@ -164,25 +164,27 @@ class NearestLeaveUiTest {
 
         // 3. Time to leave: boarding stop 36926 (kept), walk time from the location (~1.2 km → 20 min) + 1 min buffer
         setLocation(EAST_1200)
-        scrollTo("זמן לצאת: כשצריך לצאת")
+        click("התחל מעקב")
+        val setup = hasTestTag("watch-setup-list")
+        compose.onNode(setup).performScrollToNode(hasText("זמן לצאת: כשצריך לצאת", substring = true))
         click("זמן לצאת: כשצריך לצאת")
         compose.waitReal(timeout) { c.trigger == TriggerType.LEAVE_FOR_STOP }
         assertEquals("36926", c.targetStopCode)
-        scrollTo("זמן הליכה לתחנה")
+        compose.onNode(setup).performScrollToNode(hasText("זמן הליכה לתחנה", substring = true))
         waitFor("20 דק׳ הליכה")
         assertTrue(has("ההתראה תגיע 21 דק׳ לפני"))
         shot("04_leave_walk_time_from_location")
         // manual override and back (v0.6: the route view above is taller, bring the −/+ row on screen first)
-        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("+", substring = false) and androidx.compose.ui.test.hasClickAction())
+        compose.onNode(hasTestTag("watch-setup-list")).performScrollToNode(hasText("+", substring = false) and androidx.compose.ui.test.hasClickAction())
         click("+", sub = false)
         waitFor("21 דק׳ הליכה (הוגדר ידנית)")
         shot("05_leave_walk_time_manual")
         click("חישוב לפי מיקום")
-        waitFor("20 דק׳ הליכה ·")
-        assertTrue(has("בקו אווירי (הערכה"))
+        waitFor("20 דק׳ הליכה")
+        assertFalse(has("בקו אווירי"))
 
         // 4. Start: the service polls ONLY the boarding stop; per-bus leave times
-        click("התחל מעקב")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
         val startIntent = shadowOf(app).nextStartedService
         assertNotNull(startIntent)
         val service: ServiceController<WatchService> = Robolectric.buildService(WatchService::class.java, startIntent).create().startCommand(0, 1)
@@ -205,8 +207,8 @@ class NearestLeaveUiTest {
         val ongoing = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_STATUS }
         note("ongoing: ${ongoing.extras.getCharSequence(Notification.EXTRA_TITLE)} | ${ongoing.extras.getCharSequence(Notification.EXTRA_TEXT)} | chronometer=${ongoing.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER)} countdown=${ongoing.extras.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN)}")
         val ongoingText = ongoing.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
-        assertTrue(ongoingText, ongoingText.startsWith("יציאה הבאה ב-") && ongoingText.contains("דק׳) · עד "))
-        assertTrue(ongoing.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", "") == "מעקב 194 · זמן לצאת")
+        assertTrue(ongoingText, ongoingText.startsWith("קו ") && ongoingText.contains("בעוד") && ongoingText.contains("דק׳"))
+        assertTrue(ongoing.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", "").startsWith("צא ב-"))
         assertTrue(ongoing.extras.getBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN))
         shot("06_leave_watch_screen")
 
@@ -216,9 +218,9 @@ class NearestLeaveUiTest {
         val alert = shadowOf(nm).allNotifications.single { it.channelId == Notifications.CHANNEL_ALERT }
         val title = alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString()
         note("alert: $title | ${alert.extras.getCharSequence(Notification.EXTRA_TEXT)}")
-        assertEquals("צא עכשיו · 194", title.replace("\u2068", "").replace("\u2069", ""))
+        assertEquals("צא עכשיו", title.replace("\u2068", "").replace("\u2069", ""))
         val body = alert.extras.getCharSequence(Notification.EXTRA_TEXT).toString().replace("\u2068", "").replace("\u2069", "")
-        assertTrue(body, body.startsWith("מגיע לשלמה לוי/שער יפו ב-") && body.contains("דק׳ הליכה"))
+        assertTrue(body, body.contains("194") && body.contains("שלמה לוי/שער יפו"))
         val ev = WatchStateHolder.state.value!!.alerts.single()
         assertEquals(TriggerReason.LEAVE_NOW, ev.reason)
         assertEquals("7692269", ev.vehicleRef)
@@ -285,7 +287,7 @@ class NearestLeaveUiTest {
         compose.waitReal(timeout) { c.location.isUpdating }
         assertTrue(listeners > 0)
         setLocation(SAVIDOR)
-        waitFor("ממך בקו אווירי")
+        waitFor("נבחרה כתחנת ההתראה")
         // app to background → updates stop; foreground → resume
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         compose.waitReal(timeout) { !c.location.isUpdating }
@@ -298,8 +300,8 @@ class NearestLeaveUiTest {
         assertEquals("no location listener after leaving the screen", 0, listeners)
         compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         compose.passTime(1_000)
-        // v0.5: home shows "תחנות קרובות" now that the permission is granted → location runs while home is shown…
-        assertEquals("home's nearby section uses location while shown", 1, listeners)
+        // Nearby stays collapsed, so home does not listen for location until that section is opened.
+        assertEquals("collapsed nearby does not use location", 0, listeners)
         // …and never in the background
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         compose.waitReal(timeout) { !c.location.isUpdating }

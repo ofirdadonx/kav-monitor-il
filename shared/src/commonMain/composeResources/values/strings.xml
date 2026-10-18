@@ -5,8 +5,18 @@
     <!-- Home -->
     <string name="home_title">מעקב קו</string>
     <string name="home_new_watch">חיפוש קו</string>
+    <string name="home_favorites">מועדפים</string>
+    <string name="favorite_add">הוספה למועדפים</string>
+    <string name="favorite_remove">הסרה ממועדפים</string>
     <string name="home_recents">אחרונים</string>
-    <string name="home_no_recents">אין עדיין מעקבים אחרונים. התחילו בחיפוש קו.</string>
+    <string name="home_no_recents_title">אין קווים אחרונים</string>
+    <string name="home_no_recents">קווים שתפתחו יופיעו כאן</string>
+    <string name="empty_line_body">נסו מספר קו אחר</string>
+    <string name="empty_nearby_title">אין תחנות קרובות</string>
+    <string name="empty_nearby_body">אין תחנות עד קילומטר מהמיקום</string>
+    <string name="empty_buses_title">אין אוטובוסים על הקו</string>
+    <string name="nearby_expand">פתיחת תחנות קרובות</string>
+    <string name="nearby_collapse">סגירת תחנות קרובות</string>
     <string name="home_active_watch">מעקב פעיל</string>
     <string name="home_open_watch">פתח</string>
     <string name="recent_remove">הסר</string>
@@ -25,7 +35,12 @@
     <string name="search">חפש</string>
     <string name="loading">טוען…</string>
     <string name="choose_direction">בחרו כיוון</string>
-    <string name="no_directions">לא נמצאו כיוונים לקו %1$s היום</string>
+    <string name="no_directions">לא נמצא קו %1$s</string>
+    <string name="no_service_now">אין נסיעות פעילות</string>
+    <string name="next_ride">הנסיעה הבאה: %1$s</string>
+    <string name="next_ride_time">הנסיעה הבאה: %1$s בשעה %2$s</string>
+    <string name="schedule_from">המסלול לפי לוח הזמנים של %1$s</string>
+    <string name="schedule_not_published">לוח הזמנים להמשך עדיין לא פורסם</string>
     <string name="direction_route">%1$s ← %2$s</string>
     <string name="trigger_title">מתי להתריע?</string>
     <string name="trigger_departs_origin">כשהאוטובוס יוצא מתחנת המוצא</string>
@@ -37,6 +52,7 @@
     <string name="walk_routed">%1$s הליכה · %2$d דק׳</string>
     <string name="walk_routed_source">מסלול הליכה אמיתי (%1$s, OpenStreetMap)</string>
     <string name="walk_straight">בקו אווירי (הערכה)</string>
+    <string name="walk_minutes_plain">%1$d דק׳ הליכה</string>
     <string name="walk_manual">%1$d דק׳ הליכה (הוגדר ידנית)</string>
     <string name="walk_default">אין מיקום: %1$d דק׳ הליכה (ברירת מחדל, אפשר לשנות)</string>
     <string name="walk_reset">חישוב לפי מיקום</string>
@@ -59,8 +75,10 @@
     <string name="map_close">סגירת המפה</string>
     <string name="map_title">מפת קו %1$s</string>
     <string name="map_loading">טוען אוטובוסים…</string>
-    <string name="map_status">עודכן %1$s · %2$d אוטובוסים על המפה · מתעדכן כל %3$d שנ׳ רק כשהמפה פתוחה</string>
-    <string name="map_legend">כתום: התחנה שבמעקב · כחול: אוטובוס (מספר רכב · % מהמסלול) · ורוד: המיקום שלך · הקשה על תחנה מציגה את שמה</string>
+    <string name="map_status">עודכן %1$s · %2$d אוטובוסים על המפה</string>
+    <string name="map_fullscreen">מפה מלאה</string>
+    <string name="map_legend">צהוב: מספר הרכב · עיגול כחול: אוטובוס · כתום: התחנה שבמעקב · ורוד: המיקום שלך · אפשר להזיז את המפה הקטנה · הכפתור בפינה פותח מפה מלאה</string>
+    <string name="setup_cancel">ביטול</string>
     <string name="map_path_note">המסלול מצויר בין התחנות (אין נתוני shape של GTFS ב-Stride) · מפה: © OpenStreetMap</string>
     <string name="watch_extend">הארכה:</string>
     <string name="watch_extend_by">+%1$d</string>
@@ -90,6 +108,8 @@
     <string name="watch_no_update_yet">ממתין לעדכון ראשון</string>
     <string name="watch_buses_seen">אוטובוסים שנראו: %1$d</string>
     <string name="watch_alerts">התראות: %1$d</string>
+    <string name="watch_alert_set">הוגדרה התראה</string>
+    <string name="watch_alert_close">סגור</string>
     <string name="watch_error">שגיאת רשת: %1$s (ממשיך לנסות)</string>
     <string name="watch_no_buses">אין כרגע אוטובוסים של הקו ברשימת התחנה</string>
     <string name="watch_buses_header">אוטובוסים לתחנה שלך · %1$s</string>

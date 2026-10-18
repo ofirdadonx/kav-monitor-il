@@ -9,6 +9,7 @@ import android.location.LocationManager
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -119,10 +120,9 @@ class WalkMapEditUiTest {
 
     @Test
     fun routedWalk_watchCard_editRunningWatch_mapOnlyWhileOpen() {
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("התחנה הקרובה אליך במסלול")
 
@@ -139,11 +139,13 @@ class WalkMapEditUiTest {
 
         // 2. time to leave from ~1.2 km east: routed 2611 m / 35 min vs straight line 1200 m → 20 min (×1.3 ÷ 80 m/min)
         setLocation(EAST_1200)
-        scrollTo("זמן לצאת: כשצריך לצאת")
+        click("התחל מעקב")
+        val setup = hasTestTag("watch-setup-list")
+        compose.onNode(setup).performScrollToNode(hasText("זמן לצאת: כשצריך לצאת", substring = true))
         click("זמן לצאת: כשצריך לצאת")
         compose.waitReal(timeout) { c.trigger == TriggerType.LEAVE_FOR_STOP && c.targetStopCode == "36926" }
-        scrollTo("זמן הליכה לתחנה")
-        waitFor("2.6 ק״מ הליכה · 35 דק׳")
+        compose.onNode(setup).performScrollToNode(hasText("זמן הליכה לתחנה", substring = true))
+        waitFor("2611 מ׳ הליכה · 35 דק׳")
         assertTrue(has("מסלול הליכה אמיתי (OSRM"))
         val osrm = TestHttp.snapshot().filter { it.host == "osrm.test" }
         note("walk panel: ${c.leavePlan(stop36926)}; osrm requests=${osrm.size}")
@@ -152,15 +154,16 @@ class WalkMapEditUiTest {
         // 3. routing down → straight line, labeled as an estimate
         WalkReplay.down = true
         setLocation(31.9622 to 34.8400) // another cell, no recorded route
-        waitFor("בקו אווירי (הערכה")
+        compose.waitReal(timeout) { c.leavePlan(stop36926).let { !it.walkRouted && it.walkMinutes > 0 } }
+        assertFalse(has("בקו אווירי"))
         shot("03_walk_panel_straight_line_fallback")
         WalkReplay.down = false
         setLocation(EAST_1200) // cached: no new request
-        waitFor("2.6 ק״מ הליכה · 35 דק׳")
+        waitFor("2611 מ׳ הליכה · 35 דק׳")
         assertEquals(osrm.size + 1, TestHttp.snapshot().count { it.host == "osrm.test" })
 
         // 4. start: watch card rows מוצא / יעד / התראה
-        click("התחל מעקב")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
         val startIntent = shadowOf(app).nextStartedService
         assertNotNull(startIntent)
         val service: ServiceController<WatchService> = Robolectric.buildService(WatchService::class.java, startIntent).create().startCommand(0, 1)
@@ -171,7 +174,7 @@ class WalkMapEditUiTest {
         // v0.6: origin → destination in the compact header, the trigger in the info card under the hero
         waitFor("סבידור/רציפים A\u2069 ← \u2068ת. רכבת הראשונים, ראשון לציון"); waitFor("זמן לצאת ל")
         compose.waitReal(timeout) { compose.onAllNodes(hasTestTag("hero-PLENTY") or hasTestTag("hero-GET_READY") or hasTestTag("hero-NOW") or hasTestTag("hero-NONE")).fetchSemanticsNodes().isNotEmpty() }
-        assertTrue(has("לפי מסלול הליכה, 2.6 ק״מ"))
+        assertTrue(has("לפי מסלול הליכה, 2611 מ׳"))
         shot("04_watch_card_rows_leave")
         val n0 = status()
         note("ongoing (start): title=${n0.extras.getCharSequence(Notification.EXTRA_TITLE)}\n${bigText(n0)}\nactions=${n0.actions?.joinToString { it.title }}")
@@ -205,9 +208,10 @@ class WalkMapEditUiTest {
         val n1 = status()
         note("ongoing (after +30 and +15): ${n1.extras.getCharSequence(Notification.EXTRA_TEXT)}\n${bigText(n1)}")
 
-        // 7. map: opens on tap, refreshes only while open
-        scrollTo("מפה")
-        click("🗺 מפה")
+        // 7. map: the compact map under the hero opens full screen on tap
+        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag("map-fullscreen"))
+        compose.waitForIdle()
+        compose.onAllNodes(hasTestTag("map-fullscreen")).onFirst().performClick()
         compose.waitReal(timeout) { c.screen == Screen.MAP }
         compose.waitReal(timeout) { c.mapLive.isRefreshing && c.mapLive.state?.snapshot != null }
         waitFor("אוטובוסים על המפה")

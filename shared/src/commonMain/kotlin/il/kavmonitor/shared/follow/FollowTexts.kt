@@ -50,7 +50,6 @@ object FollowTexts {
                     add(if (info.etaFromCurlbus) "לפי curlbus: מגיע ל$stop ב-${info.etaAtStop.israelClock()}"
                         else "הערכה לפי המרחק: ב-${info.etaAtStop.israelClock()} (curlbus לא מסר זמן לתחנה זו)")
                 }
-                info.distanceToUserMeters?.let { add("${distance(it)} ממך · בקו אווירי") }
                 val parts = buildList {
                     info.percent?.let { add("$it% מהמסלול") }
                     info.nextStop?.let { add("תחנה הבאה: ${iso(NotificationTexts.shortStop(it.name))}") }

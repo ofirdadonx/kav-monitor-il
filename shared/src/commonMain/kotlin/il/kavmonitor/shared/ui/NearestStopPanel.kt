@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,7 +30,6 @@ import il.kavmonitor.shared.resources.dist_km
 import il.kavmonitor.shared.resources.dist_m
 import il.kavmonitor.shared.resources.nearest_accuracy
 import il.kavmonitor.shared.resources.nearest_denied
-import il.kavmonitor.shared.resources.nearest_distance
 import il.kavmonitor.shared.resources.nearest_enable
 import il.kavmonitor.shared.resources.nearest_fix_age
 import il.kavmonitor.shared.resources.nearest_is_watched
@@ -39,12 +39,9 @@ import il.kavmonitor.shared.resources.nearest_rationale
 import il.kavmonitor.shared.resources.nearest_selected
 import il.kavmonitor.shared.resources.nearest_services_off
 import il.kavmonitor.shared.resources.nearest_title
-import il.kavmonitor.shared.resources.nearest_to_watched
 import il.kavmonitor.shared.resources.nearest_use_arrive
 import il.kavmonitor.shared.resources.nearest_use_depart
 import il.kavmonitor.shared.resources.stop_code
-import il.kavmonitor.shared.resources.walk_minutes
-import il.kavmonitor.shared.resources.walk_straight
 import il.kavmonitor.shared.resources.walk_routed
 import il.kavmonitor.shared.resources.stop_item
 import org.jetbrains.compose.resources.stringResource
@@ -55,6 +52,11 @@ fun distanceText(meters: Double): String {
     val d = formatDistance(meters)
     return stringResource(if (d.unit == DistanceLabel.Unit.METERS) Res.string.dist_m else Res.string.dist_km, d.value)
 }
+
+/** Walking distance, always in meters. */
+@Composable
+fun metersText(meters: Double): String =
+    stringResource(Res.string.dist_m, kotlin.math.round(meters.coerceAtLeast(0.0)).toLong().toString())
 
 /**
  * "Nearest stop on this route" card. Location updates run only while this card is composed (attached) and the app is
@@ -118,14 +120,12 @@ fun NearestStopSection(
                             }
                             Text(listOfNotNull(n.stop.city, stringResource(Res.string.stop_code, n.stop.code)).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall, color = muted)
-                            Text(stringResource(Res.string.nearest_distance, distanceText(n.distanceMeters)), style = MaterialTheme.typography.bodyMedium)
                             if (requestWalk != null) {
                                 androidx.compose.runtime.LaunchedEffect(n.stop.code, il.kavmonitor.shared.walk.WalkPlanner.key(fix.lat, fix.lon, n.stop.code)) { requestWalk(n.stop) }
                             }
-                            walk?.invoke(n.stop)?.let { w ->
+                            walk?.invoke(n.stop)?.takeIf { it.routed }?.let { w ->
                                 Text(
-                                    if (w.routed) stringResource(Res.string.walk_routed, distanceText(w.distanceMeters), w.minutes)
-                                    else stringResource(Res.string.walk_minutes, w.minutes) + " · " + stringResource(Res.string.walk_straight),
+                                    stringResource(Res.string.walk_routed, metersText(w.distanceMeters), w.minutes),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -135,22 +135,15 @@ fun NearestStopSection(
                             (now - fix.time).takeIf { it.inWholeSeconds > STALE_FIX_SECONDS }?.let {
                                 Text(stringResource(Res.string.nearest_fix_age, agoText(it)), style = MaterialTheme.typography.bodySmall, color = muted)
                             }
-                            if (watchedStop != null) {
-                                if (watchedStop.code == n.stop.code) {
-                                    Text(stringResource(Res.string.nearest_is_watched), style = MaterialTheme.typography.bodySmall, color = muted)
-                                } else {
-                                    NearestStops.distanceTo(watchedStop, fix.lat, fix.lon)?.let { d ->
-                                        Text(stringResource(Res.string.nearest_to_watched, isolate(watchedStop.name), distanceText(d)),
-                                            style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
+                            if (watchedStop != null && watchedStop.code == n.stop.code) {
+                                Text(stringResource(Res.string.nearest_is_watched), style = MaterialTheme.typography.bodySmall, color = muted)
                             }
                             if (onUse != null) {
                                 if (isSelected(n)) {
                                     Text(stringResource(Res.string.nearest_selected), style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary)
                                 } else {
-                                    OutlinedButton(onClick = { onUse(n) }, modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(onClick = { onUse(n) }, shape = CircleShape, modifier = Modifier.fillMaxWidth()) {
                                         Text(stringResource(if (n.index == 0) Res.string.nearest_use_depart else Res.string.nearest_use_arrive))
                                     }
                                 }

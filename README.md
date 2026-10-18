@@ -12,7 +12,7 @@ Each watch runs in the foreground for a limited time (default 60 minutes). The l
   <img src="docs/screenshots/v0.6/12_departs_diagram_rows_light.png" width="220" alt="Bus rows" />
 </p>
 
-Screenshots are from 0.6. The current release is **0.7** (Material 3). See [CHANGELOG.md](CHANGELOG.md).
+Screenshots are from 0.6. The current release is **0.8**. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 
@@ -35,7 +35,7 @@ Screenshots are from 0.6. The current release is **0.7** (Material 3). See [CHAN
 ./gradlew :androidApp:assembleDebug
 ```
 
-The APK is copied to `androidApp/build/outputs/named/kav-monitor-0.7.apk`. It is a debug build, signed with the local debug key. Install with `adb install -r` on that file, or copy it to the phone.
+The APK is copied to `androidApp/build/outputs/named/kav-monitor-0.8.apk`. It is a debug build, signed with the local debug key. Install with `adb install -r` on that file, or copy it to the phone.
 
 Release signing uses `KAV_KEYSTORE`, `KAV_KEYSTORE_PASSWORD`, `KAV_KEY_ALIAS`, and `KAV_KEY_PASSWORD`. Without them, `assembleRelease` stays unsigned.
 

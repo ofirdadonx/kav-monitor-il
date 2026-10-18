@@ -68,3 +68,29 @@ class StrideStaticDataSourceTest {
         assertTrue(requests.any { "gtfs_ride_ids=158834756" in it }, "tried today's ride first")
     }
 }
+
+/** A line with no GTFS row today still comes back from the last published day. */
+class DirectionsWhenNotRunningTodayTest {
+    @Test
+    fun usesLastPublishedDayAndNextDate() = runTest {
+        val client = HttpClient(MockEngine { req ->
+            val q = req.url.parameters
+            val body = when (q["order_by"]) {
+                "date desc" -> """[{"id":1,"date":"2026-10-18","line_ref":44710,"operator_ref":3,"route_short_name":"5","route_long_name":"א-עיר<->ב-עיר-10","route_direction":"1","route_alternative":"0","agency_name":"דן"}]"""
+                "date asc" -> """[{"id":9,"date":"2026-10-20","line_ref":44710,"operator_ref":3,"route_short_name":"5","route_long_name":"א-עיר<->ב-עיר-10","route_direction":"1","route_alternative":"0","agency_name":"דן"}]"""
+                else -> when {
+                    q["date_from"] == "2026-10-19" -> "[]"
+                    q["date_from"] == "2026-10-18" -> """[{"id":2,"date":"2026-10-18","line_ref":44710,"operator_ref":3,"route_short_name":"5","route_long_name":"א-עיר<->ב-עיר-10","route_direction":"1","route_alternative":"0","agency_name":"דן"},{"id":3,"date":"2026-10-18","line_ref":44709,"operator_ref":3,"route_short_name":"5","route_long_name":"ב-עיר<->א-עיר-20","route_direction":"2","route_alternative":"0","agency_name":"דן"}]"""
+                    else -> "[]"
+                }
+            }
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }) {
+            expectSuccess = true
+            install(ContentNegotiation) { json(ApiJson) }
+        }
+        val dirs = StrideStaticDataSource(client, baseUrl = "http://stride").directions("5", "2026-10-19")
+        assertEquals(listOf(44709, 44710), dirs.map { it.lineRef }.sorted())
+        assertTrue(dirs.all { !it.runsToday && it.date == "2026-10-18" && it.nextServiceDate == "2026-10-20" })
+    }
+}
