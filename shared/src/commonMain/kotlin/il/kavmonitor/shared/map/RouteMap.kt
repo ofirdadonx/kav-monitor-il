@@ -2,10 +2,10 @@ package il.kavmonitor.shared.map
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import il.kavmonitor.shared.model.RouteStop
@@ -45,7 +45,8 @@ expect fun RouteMapView(data: RouteMapData, modifier: Modifier = Modifier)
 @Composable
 fun RouteMapCanvas(data: RouteMapData, modifier: Modifier = Modifier) {
     val pts = data.path + data.buses.map { it.lat to it.lon } + listOfNotNull(data.userLat?.let { la -> data.userLon?.let { la to it } })
-    Canvas(modifier.background(Color(0xFFF2EFE9))) {
+    val scheme = MaterialTheme.colorScheme
+    Canvas(modifier.background(scheme.surfaceContainerLow)) {
         if (pts.isEmpty()) return@Canvas
         val minLat = pts.minOf { it.first }; val maxLat = pts.maxOf { it.first }
         val minLon = pts.minOf { it.second }; val maxLon = pts.maxOf { it.second }
@@ -56,14 +57,14 @@ fun RouteMapCanvas(data: RouteMapData, modifier: Modifier = Modifier) {
         fun p(lat: Double, lon: Double) = Offset(pad + ((lon - minLon) * k).toFloat() * scale, size.height - pad - (lat - minLat).toFloat() * scale)
         val path = Path()
         data.path.forEachIndexed { i, (la, lo) -> val o = p(la, lo); if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
-        drawPath(path, Color(0xFF1B7F3A), style = Stroke(width = 6f))
+        drawPath(path, scheme.primary, style = Stroke(width = 6f))
         data.stops.forEach { s ->
             if (s.lat == null || s.lon == null) return@forEach
             val hi = s.code == data.highlightCode
-            drawCircle(if (hi) Color(0xFFE65100) else Color.White, radius = if (hi) 12f else 6f, center = p(s.lat, s.lon))
-            drawCircle(Color(0xFF1B7F3A), radius = if (hi) 12f else 6f, center = p(s.lat, s.lon), style = Stroke(2f))
+            drawCircle(if (hi) scheme.tertiary else scheme.surface, radius = if (hi) 12f else 6f, center = p(s.lat, s.lon))
+            drawCircle(scheme.primary, radius = if (hi) 12f else 6f, center = p(s.lat, s.lon), style = Stroke(2f))
         }
-        data.buses.forEach { b -> drawCircle(Color(0xFF1565C0), radius = 14f, center = p(b.lat, b.lon)) }
-        if (data.userLat != null && data.userLon != null) drawCircle(Color(0xFFD81B60), radius = 10f, center = p(data.userLat, data.userLon))
+        data.buses.forEach { b -> drawCircle(scheme.secondary, radius = 14f, center = p(b.lat, b.lon)) }
+        if (data.userLat != null && data.userLon != null) drawCircle(scheme.error, radius = 10f, center = p(data.userLat, data.userLon))
     }
 }

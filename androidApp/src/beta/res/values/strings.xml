@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Beta channel: installs next to the regular app (applicationId suffix .beta), so the name must differ. -->
-    <string name="app_name">מעקב קו בטא</string>
-</resources>

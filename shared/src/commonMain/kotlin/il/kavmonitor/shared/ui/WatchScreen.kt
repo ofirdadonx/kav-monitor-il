@@ -11,10 +11,10 @@ import il.kavmonitor.shared.resources.walk_in_use_default
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -25,7 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,8 +34,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.font.FontWeight
 import il.kavmonitor.shared.resources.watch_route_line
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -51,7 +48,6 @@ import il.kavmonitor.shared.resources.walk_in_use_routed
 import il.kavmonitor.shared.resources.label_trigger
 import il.kavmonitor.shared.resources.dir_destination
 import il.kavmonitor.shared.resources.dir_origin
-import il.kavmonitor.shared.resources.back
 import il.kavmonitor.shared.resources.new_watch_again
 import il.kavmonitor.shared.resources.restart_watch
 import il.kavmonitor.shared.resources.route_live_need_stops
@@ -113,19 +109,22 @@ fun WatchScreen(c: AppController, state: WatchState?) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
+    val (destName, destCity) = if (spec != null) destinationParts(spec) else null to null
 
+    ScreenFrame(
+        title = if (spec != null) lineTitle(spec) else stringResource(Res.string.watch_title),
+        onBack = { c.back() },
+        subtitle = spec?.let {
+            stringResource(Res.string.watch_route_line, isolate(it.origin.name), isolate(destName + (destCity?.let { city -> ", $city" } ?: "")))
+        },
+    ) { inner ->
     LazyColumn(
-        Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp),
+        Modifier.fillMaxSize().consumeWindowInsets(inner),
+        contentPadding = inner.withPagePadding(),
         state = listState,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (state == null) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
-                    Text(stringResource(Res.string.watch_title), style = MaterialTheme.typography.headlineSmall)
-                }
-            }
             item { Loading() }
             return@LazyColumn
         }
@@ -140,25 +139,13 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         val followed = c.followed?.takeIf { it.lineRef == lineRef }
         val isFollowed = { k: String -> followed != null && refs[k]?.let { il.kavmonitor.shared.follow.FollowBus.sameBus(followed, it) } == true }
 
-        // compact header: back · line → destination, from origin
-        item(key = "w-top") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
-                Column(Modifier.weight(1f)) {
-                    Text(lineTitle(state.spec), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    val (destName, destCity) = destinationParts(state.spec)
-                    Text(
-                        stringResource(Res.string.watch_route_line, isolate(state.spec.origin.name), isolate(destName + (destCity?.let { ", $it" } ?: ""))),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
         item(key = "w-hero") { HeroCard(LineModels.hero(state, rows, now)) }
         item(key = "w-info") {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val walkSub = if (state.spec.trigger == TriggerType.LEAVE_FOR_STOP) {
                         val plan = (if (state.isActive) LeavePlanHolder.planFor(state.spec) else null) ?: state.leavePlan ?: state.spec.leave
                         plan?.let {
@@ -262,6 +249,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                     walk = c::autoWalk, requestWalk = c::requestWalk)
             }
         }
+    }
     }
 }
 

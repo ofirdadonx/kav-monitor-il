@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -80,7 +79,7 @@ fun LazyListScope.liveLineItems(
                     eta = diagramEta ?: { b -> userIndex?.let { LineModels.etaAtStop(b, stops, it) } },
                     followed = { b -> isFollowed(b.key) },
                 )
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                Card(Modifier.fillMaxWidth()) {
                     LineDiagram(
                         d, Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
                         onBusTap = { k ->

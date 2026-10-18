@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +44,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import il.kavmonitor.shared.resources.Res
 import il.kavmonitor.shared.resources.bus_alerted
 import il.kavmonitor.shared.resources.bus_at_origin
@@ -94,15 +95,7 @@ import kotlin.time.Instant
 private fun isDark() = MaterialTheme.colorScheme.background.let { (it.red + it.green + it.blue) / 3 < 0.5f }
 
 @Composable
-fun toneColor(t: HeroTone): Color {
-    val dark = isDark()
-    return when (t) {
-        HeroTone.PLENTY -> if (dark) Color(0xFF2E7D32) else Color(0xFF1B7F3B)
-        HeroTone.GET_READY -> if (dark) Color(0xFFE65100) else Color(0xFFEF6C00)
-        HeroTone.NOW -> if (dark) Color(0xFFC62828) else Color(0xFFD32F2F)
-        HeroTone.NONE -> if (dark) Color(0xFF4A4A4A) else Color(0xFF6E6E6E)
-    }
-}
+fun toneColor(t: HeroTone): Color = statusFill(t, isDark())
 
 fun freshnessColor(f: Freshness): Color = when (f) {
     Freshness.FRESH -> Color(0xFF2EAD4B)
@@ -119,19 +112,18 @@ private fun approx(s: String, estimated: Boolean) = if (estimated) "\u2066~$s\u2
 fun HeroCard(m: HeroModel, modifier: Modifier = Modifier) {
     Card(
         modifier.fillMaxWidth().testTag("hero-${m.tone}"),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = toneColor(m.tone), contentColor = Color.White),
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (m.label != null) Text(m.label, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (m.label != null) Text(m.label, style = MaterialTheme.typography.titleLarge)
             Text(
                 m.big,
-                fontSize = when { m.tone == HeroTone.NONE -> 28.sp; m.label == null -> 52.sp; else -> 64.sp },
-                lineHeight = if (m.tone == HeroTone.NONE) 34.sp else 68.sp,
-                fontWeight = FontWeight.Bold,
+                style = if (m.tone == HeroTone.NONE) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayLarge,
+                color = Color.White,
             )
             Spacer(Modifier.height(4.dp))
-            Text(m.sub, fontSize = 15.sp, color = Color.White.copy(alpha = 0.92f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(m.sub, style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.92f), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -148,18 +140,15 @@ private fun DrawScope.rail(color: Color, top: Boolean, bottom: Boolean, dashed: 
     if (bottom) drawLine(color, Offset(x, size.height / 2), Offset(x, size.height), w, StrokeCap.Butt, effect)
 }
 
-/** A tiny bus glyph (drawn, so it renders the same everywhere). */
+/** Material bus symbol. A not-yet-started bus is the same icon, dimmed. */
 @Composable
 fun BusGlyph(color: Color, modifier: Modifier = Modifier, hollow: Boolean = false) {
-    Canvas(modifier.size(width = 22.dp, height = 18.dp)) {
-        val body = Size(size.width, size.height * 0.8f)
-        if (hollow) drawRoundRect(color, size = body, cornerRadius = CornerRadius(4.dp.toPx()), style = Stroke(2.dp.toPx()))
-        else drawRoundRect(color, size = body, cornerRadius = CornerRadius(4.dp.toPx()))
-        val win = if (hollow) color else Color.White
-        drawRoundRect(win, topLeft = Offset(size.width * 0.12f, size.height * 0.14f), size = Size(size.width * 0.76f, size.height * 0.28f), cornerRadius = CornerRadius(2.dp.toPx()))
-        drawCircle(Color(0xFF222222), radius = size.height * 0.13f, center = Offset(size.width * 0.25f, size.height * 0.82f))
-        drawCircle(Color(0xFF222222), radius = size.height * 0.13f, center = Offset(size.width * 0.75f, size.height * 0.82f))
-    }
+    Icon(
+        Icons.Filled.DirectionsBus,
+        contentDescription = null,
+        tint = if (hollow) color.copy(alpha = 0.45f) else color,
+        modifier = modifier.size(20.dp),
+    )
 }
 
 private fun Modifier.busGestures(key: String, onTap: ((String) -> Unit)?, onLongPress: ((String) -> Unit)?): Modifier =
@@ -216,7 +205,7 @@ fun LineDiagram(
                         }
                     }
                     Column(Modifier.weight(1f).padding(vertical = 6.dp, horizontal = 6.dp)) {
-                        val userStyle = if (r.isUser) Modifier.clip(RoundedCornerShape(8.dp)).background(primary.copy(alpha = 0.14f)).padding(horizontal = 8.dp, vertical = 2.dp) else Modifier
+                        val userStyle = if (r.isUser) Modifier.clip(MaterialTheme.shapes.small).background(primary.copy(alpha = 0.14f)).padding(horizontal = 8.dp, vertical = 2.dp) else Modifier
                         Row(userStyle.testTag(if (r.isUser) "diagram-user-stop" else "diagram-stop-${r.index}"), verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "${r.index + 1}. ${isolate(r.name)}",
@@ -299,12 +288,12 @@ fun CompactBusRow(
     val border = if (followed) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)) else Modifier
     Card(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MaterialTheme.shapes.large)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)
             .testTag("bus-card-" + b.key),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
     ) {
-        Column(Modifier.fillMaxWidth().then(border).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Column(Modifier.fillMaxWidth().then(border).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     val eta = b.eta
@@ -313,7 +302,7 @@ fun CompactBusRow(
                         b.fraction != null -> "${(b.fraction * 100).roundToInt()}%" to "מהמסלול"
                         else -> "–" to "דק׳"
                     }
-                    Text(big, fontSize = 32.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold,
+                    Text(big, style = MaterialTheme.typography.headlineLarge,
                         color = if (b.etaEstimated) muted else MaterialTheme.colorScheme.onSurface, maxLines = 1)
                     Text(unit, style = MaterialTheme.typography.labelMedium, color = muted)
                 }
@@ -324,13 +313,16 @@ fun CompactBusRow(
                     )
                     if (tags.isNotEmpty()) Text(tags.joinToString("  "), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     rowLine(b, now)?.let {
-                        Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            color = if (b.leaveStatus == LeaveStatus.NOT_CATCHABLE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Filled.DirectionsBus, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
+                            Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                color = if (b.leaveStatus == LeaveStatus.NOT_CATCHABLE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                        }
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { (b.fraction ?: 0.0).toFloat().coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(3.dp),
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
                         color = if (fresh == Freshness.SCHEDULED) muted else MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                         drawStopIndicator = {},

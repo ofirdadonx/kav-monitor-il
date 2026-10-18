@@ -84,7 +84,7 @@ fun NearestStopSection(
     }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(Res.string.nearest_title), style = MaterialTheme.typography.titleMedium)
             when (location.access) {
                 LocationAccess.UNKNOWN, LocationAccess.ASKING ->

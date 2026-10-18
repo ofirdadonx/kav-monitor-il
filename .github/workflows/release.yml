@@ -35,13 +35,13 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
 
-      - name: Build signed prod release
+      - name: Build signed release
         env:
           KAV_KEYSTORE: ${{ runner.temp }}/release.keystore
           KAV_KEYSTORE_PASSWORD: ${{ secrets.KAV_KEYSTORE_PASSWORD }}
           KAV_KEY_ALIAS: ${{ secrets.KAV_KEY_ALIAS }}
           KAV_KEY_PASSWORD: ${{ secrets.KAV_KEY_PASSWORD }}
-        run: chmod +x ./gradlew && ./gradlew :androidApp:assembleProdRelease --stacktrace
+        run: chmod +x ./gradlew && ./gradlew :androidApp:assembleRelease --stacktrace
 
       - name: Read changelog
         id: notes
@@ -68,7 +68,7 @@ jobs:
         id: apk
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          SRC=$(find androidApp/build/outputs/apk/prod/release -name '*.apk' | head -1)
+          SRC=$(find androidApp/build/outputs/apk/release -name '*.apk' | head -1)
           DEST="kav-monitor-${VERSION}.apk"
           cp "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"

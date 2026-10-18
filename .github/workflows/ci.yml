@@ -26,5 +26,5 @@ jobs:
         with:
           packages: platforms;android-37.0 platform-tools
 
-      - name: Build prod debug APK
-        run: chmod +x ./gradlew && ./gradlew :androidApp:assembleProdDebug --stacktrace
+      - name: Build debug APK
+        run: chmod +x ./gradlew && ./gradlew :androidApp:assembleDebug --stacktrace

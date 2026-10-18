@@ -4,8 +4,9 @@ The release workflow publishes the `## <version>` section below when you push a 
 
 ## 0.7
 
-- Home, search, and "new watch" actions say חיפוש קו.
-- App version is 0.7.
+- Material 3 layout, color, and Rubik type.
+- Home and search say חיפוש קו.
+- One regular app, version 0.7. No beta build.
 
 ## 0.6
 

@@ -30,6 +30,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.components.resources)
             api(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -42,6 +43,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.androidx.navigationevent.compose)
             // On-demand route map: OpenStreetMap tiles, no API key
             implementation("org.osmdroid:osmdroid-android:6.1.20")
         }

@@ -34,20 +34,6 @@ android {
         buildConfigField("String", "ORS_API_KEY", "\"" + orsApiKey.replace("\"", "") + "\"")
     }
 
-    // Release channel. beta: separate app next to the regular one (".beta" id, own label + orange BETA icon),
-    // version "0.2-beta". prod: the regular app, version "0.2".
-    flavorDimensions += "channel"
-    productFlavors {
-        create("beta") {
-            dimension = "channel"
-            applicationIdSuffix = ".beta"
-            versionNameSuffix = "-beta"
-        }
-        create("prod") {
-            dimension = "channel"
-        }
-    }
-
     if (releaseStore != null) {
         signingConfigs {
             create("release") {
@@ -116,7 +102,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
-// APKs named with the full version: build/outputs/named/kav-monitor-0.2-beta.apk (debug), …-release-unsigned.apk.
+// APKs named with the version: build/outputs/named/kav-monitor-0.7.apk (debug), …-release.apk when signed.
 androidComponents {
     onVariants { variant ->
         val cap = variant.name.replaceFirstChar { it.uppercase() }

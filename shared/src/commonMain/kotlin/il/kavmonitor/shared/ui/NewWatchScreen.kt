@@ -1,32 +1,39 @@
 package il.kavmonitor.shared.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSearchBarState
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,8 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import il.kavmonitor.shared.model.Direction
 import il.kavmonitor.shared.model.Operators
@@ -47,7 +54,6 @@ import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.resources.Res
 import il.kavmonitor.shared.resources.route_rows_title
 import il.kavmonitor.shared.resources.route_rows_to_stop
-import il.kavmonitor.shared.resources.back
 import il.kavmonitor.shared.resources.choose_direction
 import il.kavmonitor.shared.resources.choose_stop
 import il.kavmonitor.shared.resources.choose_stop_hint
@@ -59,7 +65,6 @@ import il.kavmonitor.shared.resources.dir_stops_count
 import il.kavmonitor.shared.resources.dir_stops_loading
 import il.kavmonitor.shared.resources.duration_minutes
 import il.kavmonitor.shared.resources.duration_title
-import il.kavmonitor.shared.resources.error_prefix
 import il.kavmonitor.shared.resources.line_label
 import il.kavmonitor.shared.resources.line_number_hint
 import il.kavmonitor.shared.resources.new_watch_title
@@ -96,6 +101,7 @@ import kotlin.time.Clock
 
 private val DURATIONS = listOf(15, 30, 45, 60, 90, 120)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewWatchScreen(c: AppController) {
     val now by produceState(c.clock.now()) { while (true) { delay(1000); value = c.clock.now() } }
@@ -126,31 +132,53 @@ fun NewWatchScreen(c: AppController) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        LazyColumn(
-            Modifier.weight(1f).padding(horizontal = 16.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { c.back() }) { Text("→ " + stringResource(Res.string.back)) }
-                    Text(stringResource(Res.string.new_watch_title), style = MaterialTheme.typography.headlineSmall)
+    ScreenFrame(
+        title = stringResource(Res.string.new_watch_title),
+        onBack = { c.back() },
+        bottomBar = {
+            if (selected != null && readyStops != null) {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (c.trigger != TriggerType.DEPARTS_ORIGIN && c.targetStopCode == null) {
+                            Text(stringResource(Res.string.choose_stop_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Button(onClick = { c.startNewWatch() }, enabled = c.canStart(), modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(Res.string.start_watch))
+                        }
+                    }
                 }
             }
+        },
+    ) { inner ->
+        LazyColumn(
+            Modifier.fillMaxSize().consumeWindowInsets(inner),
+            contentPadding = inner.withPagePadding(),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = c.lineInput,
-                        onValueChange = { c.lineInput = it.filter { ch -> ch.isLetterOrDigit() }.take(6) },
-                        label = { Text(stringResource(Res.string.line_number_hint)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { c.searchLine() }),
-                        modifier = Modifier.weight(1f),
-                    )
-                    Button(onClick = { c.searchLine() }, enabled = c.lineInput.isNotBlank()) { Text(stringResource(Res.string.search)) }
-                }
+                val searchState = rememberSearchBarState()
+                SearchBar(
+                    state = searchState,
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 0.dp,
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = c.lineInput,
+                            onQueryChange = { c.lineInput = it.filter { ch -> ch.isLetterOrDigit() }.take(6) },
+                            onSearch = { c.searchLine() },
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text(stringResource(Res.string.line_number_hint)) },
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                            trailingIcon = {
+                                TextButton(onClick = { c.searchLine() }, enabled = c.lineInput.isNotBlank()) {
+                                    Text(stringResource(Res.string.search))
+                                }
+                            },
+                        )
+                    },
+                )
             }
 
             if (selected == null) {
@@ -271,19 +299,6 @@ fun NewWatchScreen(c: AppController) {
                 }
             }
         }
-        // Sticky bottom bar: Start is always reachable, also with a long stop list.
-        if (selected != null && readyStops != null) {
-            Surface(tonalElevation = 3.dp, shadowElevation = 6.dp, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (c.trigger != TriggerType.DEPARTS_ORIGIN && c.targetStopCode == null) {
-                        Text(stringResource(Res.string.choose_stop_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Button(onClick = { c.startNewWatch() }, enabled = c.canStart(), modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(Res.string.start_watch))
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -293,38 +308,65 @@ fun NewWatchScreen(c: AppController) {
  */
 @Composable
 private fun DirectionCard(d: Direction, stops: Loadable<StopList>?, onClick: (() -> Unit)?) {
-    val mod = Modifier.fillMaxWidth().let { if (onClick != null) it.clickable { onClick() } else it }
     val list = (stops as? Loadable.Ready)?.value?.stops?.takeIf { it.size >= 2 }
     val parsed = d.parsedName
     val origin = list?.first()?.let { RouteEnd(it.name, it.city) } ?: parsed.origin
     val dest = list?.last()?.let { RouteEnd(it.name, it.city) } ?: parsed.destination
-    Card(mod, colors = if (onClick == null) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(Res.string.line_label, d.routeShortName), style = MaterialTheme.typography.titleLarge)
-                Text("  ·  " + Operators.displayName(d.operatorRef, d.agencyName), style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
+    val selected = onClick == null
+    val colors = if (selected) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors()
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val body: @Composable () -> Unit = {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(Res.string.line_label, d.routeShortName), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 if (d.routeAlternative.isNotBlank() && d.routeAlternative != "#" && d.routeAlternative != "0") {
-                    Text(stringResource(Res.string.dir_alternative, d.routeAlternative), style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(Res.string.dir_alternative, d.routeAlternative), style = MaterialTheme.typography.labelMedium, color = muted)
+                }
+                Surface(
+                    color = if (selected) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        Operators.displayName(d.operatorRef, d.agencyName),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
                 }
             }
-            LabeledRow(stringResource(Res.string.dir_origin), origin.stop.ifBlank { stringResource(Res.string.unknown) }, origin.city)
-            LabeledRow(stringResource(Res.string.dir_destination), dest.stop.ifBlank { stringResource(Res.string.unknown) }, dest.city)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(Res.string.dir_stops), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(56.dp))
-                when (stops) {
-                    is Loadable.Ready -> Text(stringResource(Res.string.dir_stops_count, stops.value.stops.size), style = MaterialTheme.typography.bodyLarge)
-                    is Loadable.Failed -> Text(stringResource(Res.string.unknown), style = MaterialTheme.typography.bodyLarge)
-                    else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Text(stringResource(Res.string.dir_stops_loading), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    origin.stop.ifBlank { stringResource(Res.string.unknown) },
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = muted, modifier = Modifier.size(18.dp))
+                Text(
+                    dest.stop.ifBlank { stringResource(Res.string.unknown) },
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val places = listOfNotNull(origin.city?.takeIf { it.isNotBlank() }, dest.city?.takeIf { it.isNotBlank() })
+            if (places.isNotEmpty()) {
+                Text(places.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = muted)
+            }
+            when (stops) {
+                is Loadable.Ready -> Text(stringResource(Res.string.dir_stops_count, stops.value.stops.size), style = MaterialTheme.typography.bodyMedium, color = muted)
+                is Loadable.Failed -> Text(stringResource(Res.string.unknown), style = MaterialTheme.typography.bodyMedium, color = muted)
+                else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                    Text(stringResource(Res.string.dir_stops_loading), style = MaterialTheme.typography.bodyMedium, color = muted)
                 }
             }
         }
     }
+    if (onClick != null) Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = colors, content = { body() })
+    else Card(modifier = Modifier.fillMaxWidth(), colors = colors, content = { body() })
 }
 
 /** "מוצא / יעד / התראה" rows: a fixed-width label column and the value (direction cards, watch card, recents). */
@@ -347,7 +389,7 @@ internal fun LabeledRow(
 private fun WalkPanel(c: AppController, stop: il.kavmonitor.shared.model.RouteStop?) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(Res.string.walk_title), style = MaterialTheme.typography.titleMedium)
             if (stop == null) {
                 Text(stringResource(Res.string.walk_need_stop), style = MaterialTheme.typography.bodySmall, color = muted)
@@ -402,8 +444,11 @@ private fun DurationPicker(c: AppController) {
 
 @Composable
 private fun RadioRow(selected: Boolean, text: String, sub: String? = null, estimated: Boolean = false, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onClick() }, verticalAlignment = Alignment.CenterVertically) {
-        RadioButton(selected = selected, onClick = onClick)
+    Row(
+        Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(text, modifier = Modifier.weight(1f, fill = false))
@@ -421,8 +466,5 @@ internal fun Loading() {
 
 @Composable
 private fun ErrorRow(message: String, onRetry: () -> Unit) {
-    Column {
-        Text(stringResource(Res.string.error_prefix, errorText(message)), color = MaterialTheme.colorScheme.error)
-        TextButton(onClick = onRetry) { Text(stringResource(Res.string.retry)) }
-    }
+    ErrorNotice(message, onRetry)
 }
