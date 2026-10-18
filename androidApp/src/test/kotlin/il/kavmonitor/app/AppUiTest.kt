@@ -112,12 +112,12 @@ class AppUiTest {
     @Test
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
-        waitForText("מעקב חדש")
-        assertTrue(has("v0.6-beta"))
+        waitForText("חיפוש קו")
+        assertTrue(has("v0.7-beta"))
         shot("01_home_empty")
 
         // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches
-        click("מעקב חדש")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
         click("חפש", substring = false)
         waitForText("ת. רכבת תל אביב- סבידור/רציפים A", substring = false)

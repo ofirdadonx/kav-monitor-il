@@ -119,8 +119,8 @@ class WalkMapEditUiTest {
 
     @Test
     fun routedWalk_watchCard_editRunningWatch_mapOnlyWhileOpen() {
-        waitFor("מעקב חדש")
-        click("מעקב חדש")
+        waitFor("חיפוש קו")
+        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
         click("חפש", sub = false)
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)

@@ -10,6 +10,9 @@ val orsApiKey: String = (findProperty("kav.orsApiKey") as String?)
         Properties().apply { f.inputStream().use { load(it) } }.getProperty("ors.apiKey")
     } ?: ""
 
+// Set on GitHub Actions for a signed release APK. Local release builds stay unsigned.
+val releaseStore: String? = System.getenv("KAV_KEYSTORE")?.takeIf { it.isNotBlank() }
+
 plugins {
     alias(libs.plugins.androidApplication)
     // No kotlin-android plugin: AGP 9 has built-in Kotlin support.
@@ -26,8 +29,8 @@ android {
         applicationId = "il.kavmonitor.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 7
-        versionName = "0.6"
+        versionCode = 8
+        versionName = "0.7"
         buildConfigField("String", "ORS_API_KEY", "\"" + orsApiKey.replace("\"", "") + "\"")
     }
 
@@ -45,9 +48,23 @@ android {
         }
     }
 
+    if (releaseStore != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = System.getenv("KAV_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KAV_KEY_ALIAS")
+                keyPassword = System.getenv("KAV_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseStore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -105,11 +122,19 @@ androidComponents {
         val cap = variant.name.replaceFirstChar { it.uppercase() }
         val versionName = variant.outputs.first().versionName
         val buildType = variant.buildType ?: "debug"
+        val signedRelease = !System.getenv("KAV_KEYSTORE").isNullOrBlank()
         val apkDir = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK)
         val copy = tasks.register<Copy>("copy${cap}NamedApk") {
             from(apkDir) { include("*.apk") }
             into(layout.buildDirectory.dir("outputs/named"))
-            rename { "kav-monitor-${versionName.get()}" + (if (buildType == "debug") "" else "-$buildType-unsigned") + ".apk" }
+            rename {
+                val suffix = when {
+                    buildType == "debug" -> ""
+                    signedRelease -> "-release"
+                    else -> "-$buildType-unsigned"
+                }
+                "kav-monitor-${versionName.get()}$suffix.apk"
+            }
         }
         tasks.matching { it.name == "assemble$cap" }.configureEach { finalizedBy(copy) }
     }
