@@ -6,7 +6,7 @@ The release workflow publishes the `## <version>` section below when you push a 
 
 - Material 3 layout, color, and Rubik type.
 - Home and search say חיפוש קו.
-- One regular app, version 0.7. No beta build.
+- One app, version 0.7.
 
 ## 0.6
 
