@@ -5,82 +5,69 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import il.kavmonitor.shared.resources.Res
-import il.kavmonitor.shared.resources.back
-import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenFrame(
     title: String,
-    onBack: (() -> Unit)? = null,
-    backDescription: String = stringResource(Res.string.back),
     subtitle: String? = null,
+    /** Kept so existing call sites compile. The page title is a single row. */
     largeTitle: Boolean = false,
+    /** False on the home screen: the app name already sits in the pinned blue bar. */
+    showTitleBar: Boolean = true,
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val scroll = if (largeTitle) TopAppBarDefaults.exitUntilCollapsedScrollBehavior() else null
-    val barColors = TopAppBarDefaults.topAppBarColors(
-        containerColor = MaterialTheme.colorScheme.surface,
-        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-    )
     Scaffold(
-        modifier = if (scroll != null) Modifier.nestedScroll(scroll.nestedScrollConnection) else Modifier,
         containerColor = MaterialTheme.colorScheme.surface,
-        contentWindowInsets = WindowInsets.safeDrawing,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
         topBar = {
-            val navigation: @Composable () -> Unit = {
-                if (onBack != null) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backDescription)
-                    }
-                }
-            }
-            val titleBlock: @Composable () -> Unit = {
-                Column {
-                    Text(title, maxLines = if (largeTitle) 2 else 1, overflow = TextOverflow.Ellipsis)
-                    if (subtitle != null) {
-                        Text(
-                            subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-            if (largeTitle) {
-                LargeTopAppBar(title = titleBlock, navigationIcon = navigation, scrollBehavior = scroll, colors = barColors)
-            } else {
-                TopAppBar(title = titleBlock, navigationIcon = navigation, colors = barColors)
+            if (showTitleBar) {
+                PageHeading(title, subtitle, largeTitle)
             }
         },
         bottomBar = bottomBar,
         content = content,
     )
+}
+
+/** Page title under the blue brand bar. Back lives in that bar. */
+@Composable
+private fun PageHeading(title: String, subtitle: String?, largeTitle: Boolean) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                title,
+                style = if (largeTitle) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = if (largeTitle) 2 else 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }
 
 /** Scaffold insets plus the page margin. Pass this to a list `contentPadding`, not as padding on the list. */

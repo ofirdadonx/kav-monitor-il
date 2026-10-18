@@ -2,12 +2,19 @@ package il.kavmonitor.shared.map
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.dp
 import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.route.RouteLiveSnapshot
 import kotlin.math.cos
@@ -37,9 +44,25 @@ fun RouteLiveSnapshot.mapBuses(): List<MapBus> = buses.mapNotNull { b ->
     MapBus(b.key, b.vehicleRef ?: "?", b.lat, b.lon, b.position?.fraction?.let { (it * 100).roundToInt() })
 }
 
-/** Platform map (Android: osmdroid with OpenStreetMap tiles). Only composed while the map screen is open. */
+/**
+ * Platform map (Android: osmdroid with OpenStreetMap tiles).
+ * [interactive] false swallows drags and reports a tap through [onClick].
+ */
 @Composable
-expect fun RouteMapView(data: RouteMapData, modifier: Modifier = Modifier)
+expect fun RouteMapView(
+    data: RouteMapData,
+    modifier: Modifier = Modifier,
+    interactive: Boolean = true,
+    onClick: (() -> Unit)? = null,
+)
+
+/** Compact map. Redraws whenever [data] changes (a new poll or a new GPS fix). The user can pan it. */
+@Composable
+fun RouteMapPreview(data: RouteMapData, modifier: Modifier = Modifier) {
+    Box(modifier.clip(MaterialTheme.shapes.extraLarge)) {
+        RouteMapView(data, Modifier.fillMaxSize(), interactive = true, onClick = null)
+    }
+}
 
 /** Tile-less fallback drawing (route, stops, buses, user) in an equirectangular projection; used by the JVM target. */
 @Composable
@@ -64,7 +87,11 @@ fun RouteMapCanvas(data: RouteMapData, modifier: Modifier = Modifier) {
             drawCircle(if (hi) scheme.tertiary else scheme.surface, radius = if (hi) 12f else 6f, center = p(s.lat, s.lon))
             drawCircle(scheme.primary, radius = if (hi) 12f else 6f, center = p(s.lat, s.lon), style = Stroke(2f))
         }
-        data.buses.forEach { b -> drawCircle(scheme.secondary, radius = 14f, center = p(b.lat, b.lon)) }
+        data.buses.forEach { b ->
+            val c = p(b.lat, b.lon)
+            drawRoundRect(Color(0xFFF5C400), topLeft = Offset(c.x - 22f, c.y - 34f), size = Size(44f, 16f), cornerRadius = CornerRadius(4f, 4f))
+            drawCircle(scheme.primary, radius = 12f, center = c)
+        }
         if (data.userLat != null && data.userLon != null) drawCircle(scheme.error, radius = 10f, center = p(data.userLat, data.userLon))
     }
 }

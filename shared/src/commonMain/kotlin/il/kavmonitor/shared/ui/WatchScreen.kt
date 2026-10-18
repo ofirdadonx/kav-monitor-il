@@ -4,10 +4,10 @@ import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.trigger.TriggerReason
 import il.kavmonitor.shared.watch.LeavePlanHolder
 import il.kavmonitor.shared.resources.walk_in_use
-import il.kavmonitor.shared.resources.walk_in_use_auto
 import il.kavmonitor.shared.resources.walk_in_use_manual
 import il.kavmonitor.shared.resources.walk_in_use_default
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,6 +25,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -52,7 +53,8 @@ import il.kavmonitor.shared.resources.new_watch_again
 import il.kavmonitor.shared.resources.restart_watch
 import il.kavmonitor.shared.resources.route_live_need_stops
 import il.kavmonitor.shared.resources.unknown
-import il.kavmonitor.shared.resources.watch_alerts
+import il.kavmonitor.shared.resources.watch_alert_close
+import il.kavmonitor.shared.resources.watch_alert_set
 import il.kavmonitor.shared.resources.watch_alerts_header
 import il.kavmonitor.shared.resources.watch_alert_item
 import il.kavmonitor.shared.resources.watch_buses_header
@@ -71,6 +73,7 @@ import il.kavmonitor.shared.resources.watch_status_stopped
 import il.kavmonitor.shared.resources.watch_status_timed_out
 import il.kavmonitor.shared.resources.watch_stop
 import il.kavmonitor.shared.resources.watch_title
+import il.kavmonitor.shared.map.mapBuses
 import il.kavmonitor.shared.route.RouteLiveRequest
 import il.kavmonitor.shared.util.israelClock
 import il.kavmonitor.shared.watch.WatchPhase
@@ -109,15 +112,34 @@ fun WatchScreen(c: AppController, state: WatchState?) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
+    var showAlerts by rememberSaveable { mutableStateOf(false) }
     val (destName, destCity) = if (spec != null) destinationParts(spec) else null to null
 
     ScreenFrame(
         title = if (spec != null) lineTitle(spec) else stringResource(Res.string.watch_title),
-        onBack = { c.back() },
         subtitle = spec?.let {
             stringResource(Res.string.watch_route_line, isolate(it.origin.name), isolate(destName + (destCity?.let { city -> ", $city" } ?: "")))
         },
     ) { inner ->
+    if (showAlerts && state != null && state.alerts.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { showAlerts = false },
+            confirmButton = { TextButton(onClick = { showAlerts = false }) { Text(stringResource(Res.string.watch_alert_close)) } },
+            title = { Text(stringResource(Res.string.watch_alerts_header)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    state.alerts.reversed().forEach { a ->
+                        Text(
+                            stringResource(
+                                Res.string.watch_alert_item, a.at.israelClock(withSeconds = true),
+                                a.vehicleRef ?: stringResource(Res.string.unknown), reasonText(a.reason),
+                            ),
+                        )
+                    }
+                }
+            },
+        )
+    }
     LazyColumn(
         Modifier.fillMaxSize().consumeWindowInsets(inner),
         contentPadding = inner.withPagePadding(),
@@ -140,6 +162,19 @@ fun WatchScreen(c: AppController, state: WatchState?) {
         val isFollowed = { k: String -> followed != null && refs[k]?.let { il.kavmonitor.shared.follow.FollowBus.sameBus(followed, it) } == true }
 
         item(key = "w-hero") { HeroCard(LineModels.hero(state, rows, now)) }
+        item(key = "w-map") {
+            CompactRouteMap(
+                stops = stops?.stops,
+                highlightCode = state.spec.stop.code,
+                userLat = c.location.fix?.lat,
+                userLon = c.location.fix?.lon,
+                buses = routeSnap?.mapBuses().orEmpty(),
+                onOpen = {
+                    val st = stops ?: return@CompactRouteMap
+                    c.openMap(RouteLiveRequest(lineRef, lineName, state.spec.operatorRef, st.stops, state.spec.stop.code), lineName)
+                },
+            )
+        }
         item(key = "w-info") {
             Card(
                 Modifier.fillMaxWidth(),
@@ -151,8 +186,7 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                         plan?.let {
                             val how = when {
                                 it.manual -> stringResource(Res.string.walk_in_use_manual)
-                                it.walkDistanceMeters != null && it.walkRouted -> stringResource(Res.string.walk_in_use_routed, distanceText(it.walkDistanceMeters))
-                                it.walkDistanceMeters != null -> stringResource(Res.string.walk_in_use_auto, distanceText(it.walkDistanceMeters))
+                                it.walkDistanceMeters != null && it.walkRouted -> stringResource(Res.string.walk_in_use_routed, metersText(it.walkDistanceMeters))
                                 else -> stringResource(Res.string.walk_in_use_default)
                             }
                             stringResource(Res.string.walk_in_use, it.walkMinutes, it.bufferMinutes, how)
@@ -170,9 +204,12 @@ fun WatchScreen(c: AppController, state: WatchState?) {
                             ?: stringResource(Res.string.watch_no_update_yet)
                     } else null
                     Text(
-                        listOfNotNull(phase, updated, stringResource(Res.string.watch_alerts, state.alerts.size)).joinToString(" · "),
+                        listOfNotNull(phase, updated).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    if (state.alerts.isNotEmpty()) {
+                        TextButton(onClick = { showAlerts = true }) { Text(stringResource(Res.string.watch_alert_set)) }
+                    }
                     Text(stringResource(Res.string.watch_buses_seen, state.busesSeen), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.fallback?.let { fb ->
@@ -193,13 +230,14 @@ fun WatchScreen(c: AppController, state: WatchState?) {
             if (state.isActive) {
                 Button(
                     onClick = { c.stopWatch() },
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(Res.string.watch_stop)) }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { c.startWatch(state.spec) }, modifier = Modifier.weight(1f)) { Text(stringResource(Res.string.restart_watch)) }
-                    OutlinedButton(onClick = { c.openNewWatch() }, modifier = Modifier.weight(1f)) { Text(stringResource(Res.string.new_watch_again)) }
+                    Button(onClick = { c.startWatch(state.spec) }, shape = CircleShape, modifier = Modifier.weight(1f)) { Text(stringResource(Res.string.restart_watch)) }
+                    OutlinedButton(onClick = { c.openNewWatch() }, shape = CircleShape, modifier = Modifier.weight(1f)) { Text(stringResource(Res.string.new_watch_again)) }
                 }
             }
         }
@@ -221,27 +259,12 @@ fun WatchScreen(c: AppController, state: WatchState?) {
             rowsTitle = { stringResource(Res.string.watch_buses_header, isolate(state.spec.stop.name)) },
             noRowsText = if (state.lastSuccessAt != null) ({ stringResource(Res.string.watch_no_buses) }) else null,
             expanded = expanded, onExpand = { expanded = it }, listState = listState, scope = scope,
-            onOpenMap = stops?.let { st ->
-                { c.openMap(RouteLiveRequest(lineRef, lineName, state.spec.operatorRef, st.stops, state.spec.stop.code), lineName) }
-            },
             onLongPress = if (state.isActive) { k -> refs[k]?.let { c.openBusActions(it) } } else null,
             isFollowed = isFollowed,
             // the watch's own ETA for its rows; the diagram chips use the same (incl. the fallback estimate)
             diagramEta = { b -> rows.firstOrNull { it.key == b.key }?.eta?.let { e -> e to rows.first { it.key == b.key }.etaEstimated } },
             showLive = state.isActive && stops != null,
         )
-        if (state.alerts.isNotEmpty()) {
-            item(key = "w-alerts-h") { Text(stringResource(Res.string.watch_alerts_header), style = MaterialTheme.typography.titleMedium) }
-            items(state.alerts.reversed(), key = { "alert_" + it.key }) { a ->
-                Text(
-                    stringResource(
-                        Res.string.watch_alert_item, a.at.israelClock(withSeconds = true),
-                        a.vehicleRef ?: stringResource(Res.string.unknown), reasonText(a.reason),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
         // Nearest stop to the user (foreground location, only while the watch runs and this item is on screen).
         if (stops != null && state.isActive) {
             item(key = "watch-nearest") {
@@ -287,7 +310,7 @@ private fun WatchEditRow(c: AppController, state: WatchState) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(Res.string.watch_extend), style = MaterialTheme.typography.bodyMedium)
                 il.kavmonitor.shared.watch.WatchEdits.EXTEND_CHOICES.forEach { m ->
-                    OutlinedButton(onClick = { c.extendWatch(m) }) { Text(stringResource(Res.string.watch_extend_by, m)) }
+                    OutlinedButton(onClick = { c.extendWatch(m) }, shape = CircleShape) { Text(stringResource(Res.string.watch_extend_by, m)) }
                 }
             }
         }
@@ -296,11 +319,12 @@ private fun WatchEditRow(c: AppController, state: WatchState) {
             if (plan != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(Res.string.watch_walk_edit), style = MaterialTheme.typography.bodyMedium)
-                    OutlinedButton(onClick = { c.setWatchWalkMinutes(state.spec, plan.walkMinutes - 1) }, enabled = plan.walkMinutes > 0) { Text("−") }
+                    OutlinedButton(onClick = { c.setWatchWalkMinutes(state.spec, plan.walkMinutes - 1) }, enabled = plan.walkMinutes > 0, shape = CircleShape) { Text("−") }
                     Text(stringResource(Res.string.walk_minutes, plan.walkMinutes), style = MaterialTheme.typography.titleMedium)
                     OutlinedButton(
                         onClick = { c.setWatchWalkMinutes(state.spec, plan.walkMinutes + 1) },
                         enabled = plan.walkMinutes < il.kavmonitor.shared.trigger.TriggerConfig.MAX_WALK_MINUTES,
+                        shape = CircleShape,
                     ) { Text("+") }
                 }
             }

@@ -101,9 +101,12 @@ class NearbyStopUiTest {
     fun withoutLocationPermission_quietEnableRow_noNearbyRequest() {
         shadowOf(app).denyPermissions(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        waitTag("nearby-section")
+        assertFalse(hasTag("nearby-enable"))
+        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag("nearby-header"))
+        compose.onAllNodes(hasTestTag("nearby-header")).onFirst().performClick()
         waitTag("nearby-enable")
         assertTrue(has("הפעלת מיקום"))
-        assertFalse(hasTag("nearby-section"))
         compose.passTime(2_000)
         assertEquals(0, TestHttp.snapshot().count { it.path == "/nearby" })
         shot("00_home_nearby_no_permission")
@@ -112,20 +115,22 @@ class NearbyStopUiTest {
     @Test
     fun nearbyStops_stopScreen_lineToNewWatch_routeView() {
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        waitFor("חיפוש קו")
+        waitFor("מספר קו")
         // the activity was started (rule) before the grant: re-check like onStart does when the user comes back
         compose.runOnUiThread { c.location.setAppVisible(true) }
         setLocation(AZRIELI)
 
-        // 1. home: the 5 nearest stops from ONE /nearby request (radius 300; the real answer has 11 stops)
-        waitTag("nearby-section")
+        // 1. home: nearby is collapsed. Open it, then the 5 nearest stops from ONE /nearby request.
+        waitTag("nearby-header")
+        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag("nearby-header"))
+        compose.onAllNodes(hasTestTag("nearby-header")).onFirst().performClick()
         waitTag("nearby-21472")
         val near = (c.nearby as Loadable.Ready).value
         note("nearby: ${near.map { "${it.code} ${it.nameHe} ${it.distanceMeters.toInt()} m" }}")
         assertEquals(listOf("23014", "21472", "21669", "17046", "21022"), near.map { it.code })
         note("nearby requests: ${NearbyReplay.asked}")
         assertEquals(NearbyReplay.asked.toString(), 1, TestHttp.snapshot().count { it.path == "/nearby" })
-        assertTrue(has("37 מ׳ בקו אווירי"))
+        assertFalse(has("בקו אווירי"))
         // routed walking time for the top stop only (real FOSSGIS OSRM answer: 222 m / 3 min — Begin Rd. has to be crossed)
         waitFor("מ׳ הליכה ·")
         assertEquals(1, TestHttp.snapshot().count { it.host == "osrm.test" })

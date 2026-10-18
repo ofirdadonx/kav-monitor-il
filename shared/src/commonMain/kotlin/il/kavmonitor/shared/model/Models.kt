@@ -15,6 +15,10 @@ data class Direction(
     val routeAlternative: String,
     val gtfsRouteId: Long,
     val date: String,
+    /** False when [date] is not today: the row is the latest published definition of the line. */
+    val runsToday: Boolean = true,
+    /** Next published service day (yyyy-MM-dd), when this direction does not run today. */
+    val nextServiceDate: String? = null,
 ) {
     /** Origin/destination parsed from GTFS `route_long_name` (display fallback when the stop list is not loaded). */
     val parsedName: RouteName get() = RouteName.parse(longName, routeDirection, routeAlternative)
@@ -125,7 +129,7 @@ data class LeavePlan(
     val leadMinutes: Int get() = walkMinutes + bufferMinutes
 }
 
-/** Everything needed to run a watch without touching the static API again (also what recents store). */
+/** Everything needed to run a watch without touching the static API again. */
 @Serializable
 data class WatchSpec(
     val lineRef: Int,

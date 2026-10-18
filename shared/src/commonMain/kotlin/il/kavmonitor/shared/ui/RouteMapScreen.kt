@@ -18,13 +18,11 @@ import il.kavmonitor.shared.map.RouteMapData
 import il.kavmonitor.shared.map.RouteMapView
 import il.kavmonitor.shared.map.mapBuses
 import il.kavmonitor.shared.resources.Res
-import il.kavmonitor.shared.resources.map_close
 import il.kavmonitor.shared.resources.map_legend
 import il.kavmonitor.shared.resources.map_loading
 import il.kavmonitor.shared.resources.map_path_note
 import il.kavmonitor.shared.resources.map_status
 import il.kavmonitor.shared.resources.map_title
-import il.kavmonitor.shared.trigger.Polling
 import il.kavmonitor.shared.util.israelClock
 import org.jetbrains.compose.resources.stringResource
 
@@ -53,16 +51,15 @@ fun RouteMapScreen(c: AppController) {
     val fix = c.location.fix?.takeIf { c.location.access == LocationAccess.GRANTED }
     ScreenFrame(
         title = stringResource(Res.string.map_title, c.mapTitle),
-        onBack = { c.closeMap() },
-        backDescription = stringResource(Res.string.map_close),
     ) { inner ->
         Column(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner)) {
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     if (snap == null) stringResource(Res.string.map_loading)
-                    else stringResource(Res.string.map_status, snap.fetchedAt.israelClock(withSeconds = true), snap.mapBuses().size, Polling.INTERVAL.inWholeSeconds.toInt()),
+                    else stringResource(Res.string.map_status, snap.fetchedAt.israelClock(withSeconds = true), snap.mapBuses().size),
                     style = MaterialTheme.typography.bodySmall,
                 )
+                if (snap == null) LoadingSkeleton(lines = 2)
                 st?.error?.let { Text(errorText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                 Text(stringResource(Res.string.map_legend), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(Res.string.map_path_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

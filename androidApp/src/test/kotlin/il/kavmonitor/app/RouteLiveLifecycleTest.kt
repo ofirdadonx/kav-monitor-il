@@ -2,6 +2,7 @@ package il.kavmonitor.app
 
 import android.Manifest
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onFirst
@@ -57,9 +58,8 @@ class RouteLiveLifecycleTest {
 
     @Test
     fun refreshOnlyWhileScreenVisible() {
-        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextInput("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         compose.waitReal(15_000) { has("ת. רכבת תל אביב- סבידור/רציפים A") }
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         compose.waitReal(15_000) { has("נתונים מ-") }

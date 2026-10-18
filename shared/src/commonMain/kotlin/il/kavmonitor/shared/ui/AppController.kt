@@ -3,6 +3,7 @@ package il.kavmonitor.shared.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import il.kavmonitor.shared.data.NextDeparture
 import il.kavmonitor.shared.data.RouteRepository
 import il.kavmonitor.shared.model.Direction
 import il.kavmonitor.shared.model.Operators
@@ -10,6 +11,8 @@ import il.kavmonitor.shared.model.StopList
 import il.kavmonitor.shared.model.TriggerType
 import il.kavmonitor.shared.model.WatchSpec
 import il.kavmonitor.shared.platform.WatchLauncher
+import il.kavmonitor.shared.recents.FavoriteLine
+import il.kavmonitor.shared.recents.FavoritesStore
 import il.kavmonitor.shared.recents.RecentsStore
 import il.kavmonitor.shared.trigger.TriggerConfig
 import il.kavmonitor.shared.watch.WatchStateHolder
@@ -56,7 +59,7 @@ class AppController(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
     val clock: Clock = Clock.System,
     routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
-    /** Full version name shown in the UI, e.g. "0.7". */
+    /** Full version name shown in the UI, e.g. "0.8". */
     val appVersion: String = "",
     /** Foreground location for the "nearest stop" sections. */
     val location: LocationController = LocationController(NoLocationProvider, settings = null),
@@ -66,6 +69,7 @@ class AppController(
     val walkPlanner: WalkPlanner = WalkPlanner(NoWalkingRouter),
     /** curlbus `/nearby` (home screen "תחנות קרובות"); null = section hidden. */
     private val nearbySource: il.kavmonitor.shared.data.NearbySource? = null,
+    val favorites: FavoritesStore = FavoritesStore(null),
 ) {
     /** Loadable.Failed carries an [il.kavmonitor.shared.data.ErrorKind] name; the raw text only goes to the log. */
     private fun friendlyFailure(e: Exception): String {
@@ -208,10 +212,12 @@ class AppController(
                 directions = Loadable.Ready(dirs)
                 val d = dirs.firstOrNull { it.lineRef == a.lineRef } ?: return@launch
                 selectedDirection = d
+                rememberLine(d)
                 stops = Loadable.Loading
                 val list = routes.stops(d)
                 directionStops[d.lineRef] = Loadable.Ready(list)
                 stops = Loadable.Ready(list)
+                rememberLine(d, list)
                 val idx = list.stops.indexOfFirst { it.code == stopCode }
                 if (idx == 0) { trigger = TriggerType.DEPARTS_ORIGIN; targetStopCode = null }
                 else if (idx > 0) { trigger = TriggerType.ARRIVES_AT_STOP; targetStopCode = stopCode }
@@ -237,6 +243,8 @@ class AppController(
     var directions by mutableStateOf<Loadable<List<Direction>>>(Loadable.Idle); private set
     var selectedDirection by mutableStateOf<Direction?>(null); private set
     var stops by mutableStateOf<Loadable<StopList>>(Loadable.Idle); private set
+    /** Next published departure for the open direction. Null value means the feed has no later day. */
+    var nextDeparture by mutableStateOf<Loadable<NextDeparture?>>(Loadable.Idle); private set
     var trigger by mutableStateOf(TriggerType.DEPARTS_ORIGIN)
     var targetStopCode by mutableStateOf<String?>(null)
     var durationMinutes by mutableStateOf(TriggerConfig.DEFAULT_DURATION_MINUTES)
@@ -251,6 +259,54 @@ class AppController(
         durationMinutes = TriggerConfig.DEFAULT_DURATION_MINUTES
         walkOverrideMinutes = null
         screen = Screen.NEW_WATCH
+    }
+
+    /** Home search field: open the line screen and load directions for [line]. Does not start a watch. */
+    fun searchFromHome(line: String) {
+        val q = line.filter { it.isLetterOrDigit() }.take(6)
+        if (q.isEmpty()) return
+        openNewWatch()
+        lineInput = q
+        searchLine()
+    }
+
+    /**
+     * Open a line's stops, route and live buses. Does not start a watch.
+     * Tracking stays a separate action on that screen.
+     */
+    fun openLine(lineName: String, lineRef: Int) {
+        openNewWatch()
+        lineInput = lineName
+        job?.cancel()
+        directions = Loadable.Loading
+        job = scope.launch {
+            try {
+                val dirs = routes.directions(lineName)
+                directions = Loadable.Ready(dirs)
+                val d = dirs.firstOrNull { it.lineRef == lineRef } ?: return@launch
+                selectedDirection = d
+                rememberLine(d)
+                trigger = TriggerType.DEPARTS_ORIGIN
+                targetStopCode = null
+                loadNextDeparture(d)
+                stops = Loadable.Loading
+                val list = routes.stops(d)
+                directionStops[d.lineRef] = Loadable.Ready(list)
+                stops = Loadable.Ready(list)
+                rememberLine(d, list)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (selectedDirection == null) directions = Loadable.Failed(friendlyFailure(e))
+                else stops = Loadable.Failed(friendlyFailure(e))
+            }
+        }
+    }
+
+    fun toggleFavorite(d: Direction) {
+        val loaded = (directionStops[d.lineRef] as? Loadable.Ready)?.value
+            ?: (stops as? Loadable.Ready)?.value?.takeIf { it.lineRef == d.lineRef }
+        favorites.toggle(FavoriteLine.from(d, loaded))
     }
 
     fun openWatch() { screen = Screen.WATCH }
@@ -324,13 +380,34 @@ class AppController(
         val line = lineInput.trim()
         if (line.isEmpty()) return
         selectedDirection = null; stops = Loadable.Idle
+        nextDeparture = Loadable.Idle
         directionStops.clear()
         load({ directions = it }) { routes.directions(line) }
     }
 
     fun selectDirection(d: Direction) {
         selectedDirection = d; trigger = TriggerType.DEPARTS_ORIGIN; targetStopCode = null
-        load({ stops = it }) { routes.stops(d).also { directionStops[d.lineRef] = Loadable.Ready(it) } }
+        rememberLine(d)
+        loadNextDeparture(d)
+        load({ stops = it }) {
+            routes.stops(d).also {
+                directionStops[d.lineRef] = Loadable.Ready(it)
+                rememberLine(d, it)
+            }
+        }
+    }
+
+    /** Home "אחרונים": a line page the user opened. Starting a watch does not record one. */
+    private fun rememberLine(d: Direction, list: StopList? = null) {
+        recents.add(FavoriteLine.from(d, list))
+    }
+
+    private fun loadNextDeparture(d: Direction) {
+        nextDeparture = Loadable.Loading
+        scope.launch {
+            val value = runCatching { routes.nextDeparture(d.lineRef) }.getOrNull()
+            if (selectedDirection?.lineRef == d.lineRef) nextDeparture = Loadable.Ready(value)
+        }
     }
 
     fun canStart(): Boolean {
@@ -430,7 +507,6 @@ class AppController(
     }
 
     fun startWatch(spec: WatchSpec) {
-        recents.add(spec)
         LeavePlanHolder.clear()
         il.kavmonitor.shared.watch.WatchEdits.clear()
         WatchStateHolder.update(null) // show "starting…" instead of the previous watch until the service reports

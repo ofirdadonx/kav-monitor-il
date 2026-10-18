@@ -13,6 +13,7 @@ import kotlin.time.Duration.Companion.minutes
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -121,18 +122,24 @@ abstract class WatchV06Screens(private val theme: String) {
     }
 
     private fun openDirection194() {
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("התחנה הקרובה אליך במסלול")
     }
 
+    private fun scrollSetup(m: SemanticsMatcher) {
+        if (!hasNode(hasTestTag("watch-setup-list"))) click("התחל מעקב")
+        waitTag("watch-setup-list")
+        compose.onNode(hasTestTag("watch-setup-list")).performScrollToNode(m)
+        compose.waitForIdle()
+    }
+
     private fun pickStop(name: String, code: String) {
         val row = hasText(name, substring = true) and hasText(code, substring = true) and hasClickAction()
-        scrollTo(row)
+        scrollSetup(row)
         compose.onAllNodes(row).onLast().performClick()
         compose.waitReal(timeout) { c.targetStopCode == code }
     }
@@ -143,7 +150,9 @@ abstract class WatchV06Screens(private val theme: String) {
     @After fun tearDown() { runCatching { running?.destroy() }; running = null; TestConfig.reset() }
 
     private fun start(): ServiceController<WatchService> {
-        click("התחל מעקב")
+        if (!hasNode(hasTestTag("watch-setup-confirm"))) click("התחל מעקב")
+        waitTag("watch-setup-confirm")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
         val intent = shadowOf(app).nextStartedService
         assertNotNull(intent)
         val service = Robolectric.buildService(WatchService::class.java, intent).create().startCommand(0, 1)
@@ -185,7 +194,7 @@ abstract class WatchV06Screens(private val theme: String) {
         click("התראה כשהאוטובוס מגיע לתחנה הזו")
         compose.waitReal(timeout) { c.targetStopCode == "36926" }
         setLocation(EAST_1200)
-        scrollTo("זמן לצאת: כשצריך לצאת")
+        scrollSetup(hasText("זמן לצאת: כשצריך לצאת", substring = true))
         click("זמן לצאת: כשצריך לצאת")
         compose.waitReal(timeout) { c.trigger == TriggerType.LEAVE_FOR_STOP }
         assertEquals("36926", c.targetStopCode)
@@ -253,7 +262,7 @@ abstract class WatchV06Screens(private val theme: String) {
     @Test
     fun departsOriginWatch() {
         openDirection194()
-        scrollTo("כשהאוטובוס יוצא מתחנת המוצא")
+        scrollSetup(hasText("כשהאוטובוס יוצא מתחנת המוצא", substring = true))
         click("כשהאוטובוס יוצא מתחנת המוצא")
         val service = start()
         compose.waitReal(timeout) { hasNode(hasTestTag("hero-PLENTY") or hasTestTag("hero-GET_READY") or hasTestTag("hero-NOW")) }
@@ -269,7 +278,7 @@ abstract class WatchV06Screens(private val theme: String) {
     @Test
     fun arrivesAtStopWatch() {
         openDirection194()
-        scrollTo("כשהאוטובוס מגיע לתחנה שאבחר")
+        scrollSetup(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
         click("כשהאוטובוס מגיע לתחנה שאבחר")
         pickStop("שלמה לוי/שער יפו", "36926")
         val service = start()
@@ -288,7 +297,7 @@ abstract class WatchV06Screens(private val theme: String) {
         FallbackReplay.active = true
         TestClock.set(FallbackUiTest.REPLAY_START, 1.0)
         openDirection194()
-        scrollTo("כשהאוטובוס מגיע לתחנה שאבחר")
+        scrollSetup(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
         click("כשהאוטובוס מגיע לתחנה שאבחר")
         pickStop("דרך מנחם בגין/נחמני", "25141")
         compose.waitReal(timeout) { c.routeLive.state?.snapshot?.failedStops?.any { it.code == "25141" } == true }
@@ -358,18 +367,19 @@ class WatchCountdownUiTest {
 
     @Test
     fun heroCountsDownBetweenPollsWithoutRequests() {
-        click("חיפוש קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         compose.waitReal(timeout) { has("התחנה הקרובה אליך במסלול") }
-        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
+        click("התחל מעקב")
+        val setup = hasTestTag("watch-setup-list")
+        compose.onNode(setup).performScrollToNode(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
         click("כשהאוטובוס מגיע לתחנה שאבחר")
         val row = hasText("שלמה לוי/שער יפו", substring = true) and hasText("36926", substring = true) and hasClickAction()
-        compose.waitReal(timeout) { runCatching { compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(row) }.isSuccess }
+        compose.onNode(setup).performScrollToNode(row)
         compose.onAllNodes(row).onLast().performClick()
         compose.waitReal(timeout) { c.targetStopCode == "36926" }
-        click("התחל מעקב")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
         val service = Robolectric.buildService(WatchService::class.java, shadowOf(app).nextStartedService).create().startCommand(0, 1)
         running = service
         compose.waitReal(timeout) { WatchStateHolder.state.value?.lastSuccessAt != null }

@@ -7,6 +7,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onFirst
@@ -102,19 +104,20 @@ class FallbackUiTest {
     }
 
     private fun startArrivesWatchAt25141(beforeStart: () -> Unit = {}): ServiceController<WatchService> {
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("התחנה הקרובה אליך במסלול")
-        scrollTo("כשהאוטובוס מגיע לתחנה שאבחר")
+        click("התחל מעקב")
+        val setup = hasTestTag("watch-setup-list")
+        compose.onNode(setup).performScrollToNode(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
         click("כשהאוטובוס מגיע לתחנה שאבחר")
         // the stop row in the picker (the live route panel above may mention the same stop name)
         val row = hasText("דרך מנחם בגין/נחמני", substring = true) and hasText("25141", substring = true) and hasClickAction()
         compose.waitForIdle()
-        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(row)
+        compose.onNode(setup).performScrollToNode(row)
         compose.waitForIdle()
         compose.onAllNodes(row).onLast().performClick()
         try { compose.waitReal(timeout) { c.targetStopCode == "25141" } } catch (e: Throwable) {
@@ -128,7 +131,7 @@ class FallbackUiTest {
         if (!TestApp.LIVE) compose.waitReal(timeout) { c.routeLive.state?.snapshot?.failedStops?.any { it.code == "25141" } == true }
         app.graph.brokenStops.clear("25141")
         beforeStart()
-        click("התחל מעקב")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
         val startIntent = shadowOf(app).nextStartedService
         assertNotNull(startIntent)
         return Robolectric.buildService(WatchService::class.java, startIntent).create().startCommand(0, 1)
@@ -189,7 +192,7 @@ class FallbackUiTest {
             note("alert: ${ev.reason} ${ev.vehicleRef} at ${ev.at} eta=${ev.eta} | ${allNotificationText()}")
             assertEquals("23399602", ev.vehicleRef)
             assertTrue(ev.reason in setOf(TriggerReason.AT_STOP_GPS, TriggerReason.AT_STOP_ETA, TriggerReason.DROPPED_AT_STOP))
-            waitFor("התראות: 1")
+            waitFor("הוגדרה התראה")
             shot("04_fallback_arrival_alert")
             assertTrue(allNotificationText().contains("הערכה"))
             assertFalse(allNotificationText().contains("Exception"))
@@ -208,18 +211,19 @@ class FallbackUiTest {
         assertEquals("no watch HTTP after Stop", before, TestHttp.count("curlbus.test"))
 
         // new watch: the stop picker marks the broken stops as estimated
-        waitFor("חיפוש קו")
-        click("חיפוש קו")
+        waitFor("מספר קו")
         compose.onNode(hasSetTextAction()).performTextReplacement("194")
-        click("חפש", sub = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitFor("ת. רכבת תל אביב- סבידור/רציפים A")
         click("ת. רכבת תל אביב- סבידור/רציפים A", sub = false)
         waitFor("התחנה הקרובה אליך במסלול")
-        scrollTo("כשהאוטובוס מגיע לתחנה שאבחר")
+        click("התחל מעקב")
+        val setup = hasTestTag("watch-setup-list")
+        compose.onNode(setup).performScrollToNode(hasText("כשהאוטובוס מגיע לתחנה שאבחר", substring = true))
         click("כשהאוטובוס מגיע לתחנה שאבחר")
         val row = hasText("דרך מנחם בגין/נחמני", substring = true) and hasText("25141", substring = true) and hasClickAction()
         compose.waitForIdle()
-        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(row)
+        compose.onNode(setup).performScrollToNode(row)
         compose.waitForIdle()
         compose.onAllNodes(row and hasText("הערכה", substring = true)).onLast().assertExists()
         shot("05_stop_picker_estimated_badge")

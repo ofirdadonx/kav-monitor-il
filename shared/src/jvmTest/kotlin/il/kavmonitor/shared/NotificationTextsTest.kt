@@ -93,12 +93,12 @@ class NotificationTextsTest {
         // details are still there when expanded
         val leave = cases.toMap()["alert · time to leave"]!!
         assertTrue(leave.big!!.contains("7692269"))
-        assertEquals("צא עכשיו · \u2068194\u2069", leave.title)
-        assertEquals("מגיע ל\u2068שלמה לוי/שער יפו\u2069 ב-17:30 · 6 דק׳ הליכה", leave.body)
-        assertEquals("יציאה הבאה ב-17:24 (בעוד 8 דק׳) · עד 18:30", cases.toMap()["ongoing · time to leave · next"]!!.body)
-        assertEquals("מעקב \u2068194\u2069 · זמן לצאת", cases.toMap()["ongoing · time to leave · next"]!!.title)
+        assertEquals("צא עכשיו", leave.title)
+        assertEquals("\u2068194\u2069 · \u2068שלמה לוי/שער יפו\u2069", leave.body)
+        assertEquals("קו \u2068194\u2069 · בעוד 8 דק׳", cases.toMap()["ongoing · time to leave · next"]!!.body)
+        assertEquals("צא ב-17:24", cases.toMap()["ongoing · time to leave · next"]!!.title)
         assertTrue(cases.toMap()["ongoing · server error on the stop"]!!.big!!.contains("25141"))
-        assertTrue(cases.toMap()["alert · arriving, estimated (broken stop)"]!!.body.endsWith("(הערכה)"))
+        assertTrue(cases.toMap()["alert · arriving, estimated (broken stop)"]!!.body.endsWith("הערכה"))
     }
 
     /** Writes the before/after examples (before = v0.3.1 texts captured by the UI tests). */

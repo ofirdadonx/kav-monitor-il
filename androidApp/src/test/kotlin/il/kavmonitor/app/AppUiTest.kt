@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Intent
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onFirst
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -86,6 +88,10 @@ class AppUiTest {
     private fun scrollTo(text: String) =
         compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text, substring = true))
 
+    private fun scrollSetup(text: String) {
+        compose.onNode(hasTestTag("watch-setup-list")).performScrollToNode(hasText(text, substring = true))
+    }
+
     private fun scrollTop() = compose.onAllNodes(hasScrollAction()).onFirst().performScrollToIndex(0)
 
     private fun dumpNotifications(label: String) {
@@ -112,14 +118,13 @@ class AppUiTest {
     @Test
     fun fullWatchFlow() {
         // 1. Home (no recents yet), version footer
-        waitForText("חיפוש קו")
-        assertTrue(has("v0.7"))
+        waitForText("מספר קו")
+        assertTrue(has("v0.8"))
         shot("01_home_empty")
 
-        // 2. New watch → 194 → direction cards; stop counts fill in from parallel prefetches
-        click("חיפוש קו")
+        // 2. Type a line on the home field → direction cards
         compose.onNode(hasSetTextAction()).performTextInput("194")
-        click("חפש", substring = false)
+        compose.onNode(hasSetTextAction()).performImeAction()
         waitForText("ת. רכבת תל אביב- סבידור/רציפים A", substring = false)
         compose.waitReal(timeout) { !has("סופר…") }
         if (!TestApp.LIVE) { assertTrue(has("28 תחנות")); assertTrue(has("27 תחנות")) }
@@ -134,16 +139,17 @@ class AppUiTest {
         scrollTo("נתונים חיים: SIRI")
         shot("04_route_live_more_buses")
 
-        // 4. Arrives at a stop: stop list + sticky Start bar (disabled until a stop is chosen)
-        scrollTo("כשהאוטובוס מגיע לתחנה שאבחר")
+        // 4. Start opens the alert dialog: arrives-at-stop, then the stop list
+        click("התחל מעקב")
+        scrollSetup("כשהאוטובוס מגיע לתחנה שאבחר")
         click("כשהאוטובוס מגיע לתחנה שאבחר")
-        scrollTo("בחרו תחנה")
+        scrollSetup("בחרו תחנה")
         waitForText("בחרו תחנה מהרשימה")
-        scrollTo("שדרות יעקב/הורד")
+        scrollSetup("שדרות יעקב/הורד")
         shot("05_arrives_stop_list_sticky_start")
 
         // 5. Choose 36926 Shlomo Levi: the route view adds it to the sampled stops → ETA per bus
-        scrollTo("שלמה לוי/שער יפו")
+        scrollSetup("שלמה לוי/שער יפו")
         click("שלמה לוי/שער יפו")
         compose.waitReal(timeout) { app.graph.controller.routeLive.state?.snapshot?.targetStopCode == "36926" }
         val anyEta = app.graph.controller.routeLive.state!!.snapshot!!.active.any { it.etaAtTarget != null }
@@ -152,13 +158,12 @@ class AppUiTest {
         if (!TestApp.LIVE) assertTrue(anyEta)
         shot("06_route_live_eta_to_chosen_stop")
 
-        // 6. Back to "departs origin", 60 min, start (sticky button)
-        scrollTo("כשהאוטובוס יוצא מתחנת המוצא")
+        // 6. Back to "departs origin", 60 min, submit inside the dialog
+        scrollSetup("כשהאוטובוס יוצא מתחנת המוצא")
         click("כשהאוטובוס יוצא מתחנת המוצא")
-        click("30 דק׳")
-        click("60 דק׳")
+        scrollSetup("משך המעקב")
         shot("07_departs_origin_duration")
-        click("התחל מעקב")
+        compose.onNode(hasTestTag("watch-setup-confirm")).performClick()
 
         // 7. The launcher asked Android to start the foreground service: run it.
         val startIntent = shadowOf(app).nextStartedService
@@ -193,17 +198,17 @@ class AppUiTest {
                 compose.waitReal(liveWaitMin * 60_000) { shadowOf(nm).allNotifications.any { it.channelId == Notifications.CHANNEL_ALERT } }
             }.isSuccess
             dumpNotifications("live: after waiting up to $liveWaitMin min for a departure (alert=$gotAlert)")
-            if (gotAlert) { scrollTop(); scrollTo("התראות שנשלחו"); shot("10_watch_after_real_departure_alert") }
+            if (gotAlert) { scrollTop(); scrollTo("הוגדרה התראה"); shot("10_watch_after_real_departure_alert") }
         }
         if (!TestApp.LIVE) {
             compose.waitReal(timeout) { shadowOf(nm).allNotifications.any { it.channelId == Notifications.CHANNEL_ALERT } }
             val alert = shadowOf(nm).allNotifications.first { it.channelId == Notifications.CHANNEL_ALERT }
-            assertEquals("194 יצא מהמוצא", alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", ""))
+            assertEquals("194 יצא", alert.extras.getCharSequence(Notification.EXTRA_TITLE).toString().replace("\u2068", "").replace("\u2069", ""))
             // v0.6: red hero "האוטובוס יצא"; the alerts list is below the line diagram and the rows
             scrollTop()
             waitForText("האוטובוס יצא")
-            scrollTo("התראות שנשלחו")
-            waitForText("התראות שנשלחו")
+            scrollTo("הוגדרה התראה")
+            waitForText("הוגדרה התראה")
             shot("10_watch_after_departure_alert")
             dumpNotifications("after departure alert")
         }

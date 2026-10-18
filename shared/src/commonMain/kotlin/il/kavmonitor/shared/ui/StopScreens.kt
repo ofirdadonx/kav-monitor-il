@@ -1,6 +1,7 @@
 package il.kavmonitor.shared.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,9 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,7 +51,10 @@ import il.kavmonitor.shared.util.israelClock
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import il.kavmonitor.shared.resources.Res
-import il.kavmonitor.shared.resources.walk_minutes
+import il.kavmonitor.shared.resources.empty_nearby_body
+import il.kavmonitor.shared.resources.empty_nearby_title
+import il.kavmonitor.shared.resources.nearby_collapse
+import il.kavmonitor.shared.resources.nearby_expand
 import il.kavmonitor.shared.resources.walk_routed
 
 private fun NearbyStop.asRouteStop() = RouteStop(0, code, nameHe, null, lat, lon)
@@ -56,68 +67,89 @@ private fun NearbyStop.asRouteStop() = RouteStop(0, code, nameHe, null, lat, lon
 @Composable
 fun NearbyStopsSection(c: AppController) {
     if (!c.hasNearby) return
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val loc = c.location
-    if (loc.access != LocationAccess.GRANTED) {
-        Surface(
-            onClick = { loc.enableLocation() },
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier.fillMaxWidth().testTag("nearby-enable"),
+    var open by rememberSaveable { mutableStateOf(false) }
+    Card(
+        Modifier.fillMaxWidth().testTag("nearby-section"),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clickable { open = !open }.padding(horizontal = 16.dp, vertical = 12.dp).testTag("nearby-header"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                Modifier.defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(Icons.Filled.MyLocation, contentDescription = null)
-                Column(Modifier.weight(1f)) {
-                    Text("הפעלת מיקום", style = MaterialTheme.typography.titleSmall)
-                    Text("תחנות קרובות אליך — דורש הרשאת מיקום", style = MaterialTheme.typography.bodySmall)
+            Icon(Icons.Filled.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text("תחנות קרובות", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Icon(
+                if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = stringResource(if (open) Res.string.nearby_collapse else Res.string.nearby_expand),
+            )
+        }
+        if (open) {
+            HorizontalDivider()
+            if (c.location.access != LocationAccess.GRANTED) {
+                Surface(
+                    onClick = { c.location.enableLocation() },
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().padding(12.dp).testTag("nearby-enable"),
+                ) {
+                    Row(
+                        Modifier.defaultMinSize(minHeight = 48.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(Icons.Filled.MyLocation, contentDescription = null)
+                        Column(Modifier.weight(1f)) {
+                            Text("הפעלת מיקום", style = MaterialTheme.typography.titleSmall)
+                            Text("תחנות קרובות אליך — דורש הרשאת מיקום", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
+            } else {
+                NearbyStopsList(c)
             }
         }
-        return
     }
+}
+
+@Composable
+private fun NearbyStopsList(c: AppController) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val loc = c.location
     DisposableEffect(loc) {
         val t = loc.attach()
         onDispose { loc.detach(t) }
     }
     val fix = loc.fix
     if (fix != null) LaunchedEffect(il.kavmonitor.shared.data.NearbyStops.cacheKey(fix.lat, fix.lon)) { c.loadNearby(fix.lat, fix.lon) }
-    Card(Modifier.fillMaxWidth().testTag("nearby-section")) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("תחנות קרובות", style = MaterialTheme.typography.titleMedium)
-            when (val n = c.nearby) {
-                is Loadable.Ready -> if (n.value.isEmpty()) {
-                    Text("אין תחנות עד ק״מ ממך", style = MaterialTheme.typography.bodySmall, color = muted)
-                } else n.value.forEachIndexed { i, s ->
-                    if (i > 0) HorizontalDivider()
-                    Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable { c.openStop(s) }.padding(vertical = 8.dp).testTag("nearby-${s.code}"),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(isolate(s.nameHe), style = MaterialTheme.typography.bodyLarge)
-                            val walkLine = if (i == 0) {
-                                LaunchedEffect(s.code, fix?.let { il.kavmonitor.shared.walk.WalkPlanner.key(it.lat, it.lon, s.code) }) { c.requestWalk(s.asRouteStop()) }
-                                c.autoWalk(s.asRouteStop())?.let { w ->
-                                    if (w.routed) stringResource(Res.string.walk_routed, distanceText(w.distanceMeters), w.minutes)
-                                    else "~" + stringResource(Res.string.walk_minutes, w.minutes) + " הליכה (הערכה)"
-                                }
-                            } else null
-                            Text(
-                                listOfNotNull(distanceText(s.distanceMeters) + " בקו אווירי", "תחנה " + s.code, walkLine).joinToString(" · "),
-                                style = MaterialTheme.typography.bodySmall, color = muted,
-                            )
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (val n = c.nearby) {
+            is Loadable.Ready -> if (n.value.isEmpty()) {
+                EmptyState(Icons.Filled.Place, stringResource(Res.string.empty_nearby_title), stringResource(Res.string.empty_nearby_body))
+            } else n.value.forEachIndexed { i, s ->
+                if (i > 0) HorizontalDivider()
+                Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable { c.openStop(s) }.padding(vertical = 8.dp).testTag("nearby-${s.code}"),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(isolate(s.nameHe), style = MaterialTheme.typography.bodyLarge)
+                        LaunchedEffect(s.code, fix?.let { il.kavmonitor.shared.walk.WalkPlanner.key(it.lat, it.lon, s.code) }) { c.requestWalk(s.asRouteStop()) }
+                        val walkLine = c.autoWalk(s.asRouteStop())?.takeIf { it.routed }?.let { w ->
+                            stringResource(Res.string.walk_routed, metersText(w.distanceMeters), w.minutes)
                         }
-                        Text("←", style = MaterialTheme.typography.titleMedium, color = muted)
+                        Text(
+                            listOfNotNull(walkLine, "תחנה " + s.code).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall, color = muted,
+                        )
                     }
+                    Text("←", style = MaterialTheme.typography.titleMedium, color = muted)
                 }
-                is Loadable.Failed -> ErrorNotice(n.message)
-                else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Text(if (fix == null) "מאתר מיקום…" else "טוען תחנות קרובות…", style = MaterialTheme.typography.bodySmall, color = muted)
-                }
+            }
+            is Loadable.Failed -> ErrorNotice(n.message)
+            else -> {
+                Text(if (fix == null) "מאתר מיקום…" else "טוען תחנות קרובות…", style = MaterialTheme.typography.bodySmall, color = muted)
+                LoadingSkeleton(lines = 3)
             }
         }
     }
@@ -134,10 +166,14 @@ fun StopScreen(c: AppController) {
     }
     val st = c.stopArrivals.state?.takeIf { it.stopCode == stop.code }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val walkStop = stop.asRouteStop()
+    LaunchedEffect(stop.code, c.location.fix?.let { il.kavmonitor.shared.walk.WalkPlanner.key(it.lat, it.lon, stop.code) }) {
+        c.requestWalk(walkStop)
+    }
+    val walk = c.autoWalk(walkStop)?.takeIf { it.routed }
     ScreenFrame(
         title = isolate(stop.nameHe),
-        onBack = { c.back() },
-        subtitle = "תחנה ${stop.code} · ${distanceText(stop.distanceMeters)} ממך בקו אווירי",
+        subtitle = if (walk != null) "תחנה ${stop.code} · ${metersText(walk.distanceMeters)} הליכה" else "תחנה ${stop.code}",
     ) { inner ->
     LazyColumn(
         Modifier.fillMaxSize().consumeWindowInsets(inner),
@@ -154,10 +190,13 @@ fun StopScreen(c: AppController) {
                 },
                 style = MaterialTheme.typography.bodySmall, color = if (st?.error != null && snap == null) MaterialTheme.colorScheme.error else muted,
             )
-            Text("לחיצה על קו פותחת חיפוש קו לתחנה הזו", style = MaterialTheme.typography.bodySmall, color = muted)
+            Text("לחיצה על קו מציגה את המסלול. מעקב מתחיל רק בלחיצה על התחל מעקב.", style = MaterialTheme.typography.bodySmall, color = muted)
+            if (snap == null && st?.error == null) LoadingSkeleton(lines = 4)
         }
         val arrivals = st?.snapshot?.let { StopArrivals.from(it, now) }.orEmpty()
-        if (st?.snapshot != null && arrivals.isEmpty()) item { Text("אין אוטובוסים בחצי השעה הקרובה", color = muted) }
+        if (st?.snapshot != null && arrivals.isEmpty()) item {
+            EmptyState(Icons.Filled.DirectionsBus, "אין אוטובוסים בחצי השעה הקרובה")
+        }
         items(arrivals, key = { it.key }) { a ->
             Card(onClick = { c.watchFromStop(a, stop.code) }, modifier = Modifier.fillMaxWidth().testTag("arrival-${a.key}")) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

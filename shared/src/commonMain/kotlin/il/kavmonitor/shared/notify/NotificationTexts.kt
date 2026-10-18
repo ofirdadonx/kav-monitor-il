@@ -14,9 +14,8 @@ import kotlin.math.ceil
 import kotlin.time.Instant
 
 /**
- * Collapsed notification: [title] = the one key fact, [body] = one short line to act on. [big] = the expanded view
- * (secondary details: rows, vehicle, codes, last update). Collapsed texts never carry vehicle numbers, trip ids, stop
- * codes or seconds.
+ * Collapsed notification: [title] is the one fact to act on, [body] is one short line that does not repeat it.
+ * [big] is the expanded view. Collapsed texts never carry vehicle numbers, trip ids, stop codes or seconds.
  */
 data class NotifText(val title: String, val body: String, val big: String? = null)
 
@@ -74,12 +73,6 @@ object NotificationTexts {
         else -> errorShort(e)
     }
 
-    private fun triggerShort(spec: WatchSpec) = when (spec.trigger) {
-        TriggerType.DEPARTS_ORIGIN -> "יציאה מהמוצא"
-        TriggerType.ARRIVES_AT_STOP -> "הגעה ל" + stop(spec.stop.name)
-        TriggerType.LEAVE_FOR_STOP -> "זמן לצאת"
-    }
-
     private fun triggerRow(spec: WatchSpec) = when (spec.trigger) {
         TriggerType.DEPARTS_ORIGIN -> "יציאה מהמוצא"
         TriggerType.ARRIVES_AT_STOP -> "הגעה ל" + iso(spec.stop.name)
@@ -89,96 +82,96 @@ object NotificationTexts {
     private fun rows(spec: WatchSpec) =
         "מוצא: ${iso(spec.origin.name)}\nיעד: ${iso(spec.directionLabel)}\nהתראה: ${triggerRow(spec)}"
 
-    /** The next relevant bus for the collapsed line (null when there is none). */
-    private fun nextLine(spec: WatchSpec, st: WatchState, now: Instant): String? {
-        val fb = st.fallback != null && spec.trigger != TriggerType.DEPARTS_ORIGIN
-        val est = if (fb) " (הערכה)" else ""
-        val estIn = if (fb) ", הערכה" else ""
-        return when (spec.trigger) {
-            TriggerType.LEAVE_FOR_STOP -> {
-                val b = st.nextLeaveBus ?: return "אין כרגע אוטובוס שאפשר להספיק"
-                val leave = b.leaveAt ?: return null
-                if (b.leaveStatus == LeaveStatus.LEAVE_NOW || leave <= now) "צא עכשיו · האוטובוס ב-${b.eta?.let(::t) ?: "—"}$est"
-                else "יציאה הבאה ב-${t(leave)} (בעוד ${minsUntil(leave, now)} דק׳$estIn)"
-            }
-            TriggerType.DEPARTS_ORIGIN -> {
-                val b = st.buses.filter { !it.alerted && it.scheduledDeparture != null }.minByOrNull { it.scheduledDeparture!! }
-                    ?: return "אין כרגע אוטובוס בתחנת המוצא"
-                "הבא יוצא ב-${t(b.scheduledDeparture!!)}"
-            }
-            TriggerType.ARRIVES_AT_STOP -> {
-                val b = st.buses.filter { !it.alerted && it.eta != null && it.eta >= now - il.kavmonitor.shared.trigger.Polling.INTERVAL }
-                    .minByOrNull { it.eta!! } ?: return "אין כרגע אוטובוס בדרך לתחנה"
-                "הבא מגיע ב-${t(b.eta!!)} (בעוד ${minsUntil(b.eta!!, now)} דק׳$estIn)"
-            }
-        }
-    }
+    private fun estSuffix(estimated: Boolean) = if (estimated) " · הערכה" else ""
 
-    /** Ongoing watch notification. [state] null = just started. */
+    /** Ongoing watch notification. [state] null = just started. End time stays in the expanded text. */
     fun ongoing(spec: WatchSpec, st: WatchState?, now: Instant): NotifText {
-        val title = "מעקב ${line(spec)} · ${triggerShort(spec)}"
-        val until = st?.endsAt?.let { " · עד ${t(it)}" } ?: ""
         val err = st?.lastError
-        val body = when {
-            st == null || (st.lastSuccessAt == null && err == null) -> "ממתין לעדכון ראשון$until"
-            err != null -> "${errorShort(err)} · מנסה שוב$until"
-            else -> (nextLine(spec, st, now) ?: "מעקב פעיל") + until
+        val fb = st?.fallback != null && spec.trigger != TriggerType.DEPARTS_ORIGIN
+        val (title, body) = when {
+            st == null || (st.lastSuccessAt == null && err == null) -> "מעקב ${line(spec)}" to "ממתין לעדכון"
+            err != null -> "מעקב ${line(spec)}" to errorShort(err)
+            else -> glance(spec, st, now, fb)
         }
         val big = buildString {
             append(rows(spec))
             if (st != null) {
                 if (err != null) {
-                    append('\n').append(errorDetail(err)).append(" · ממשיך לנסות")
-                    st.lastSuccessAt?.let { append(" (עדכון אחרון שהצליח ${t(it)})") }
-                } else if (st.lastSuccessAt != null) {
-                    nextLine(spec, st, now)?.let { append('\n').append(it) }
+                    append('\n').append(errorDetail(err))
+                    st.lastSuccessAt?.let { append(" · עדכון אחרון ${t(it)}") }
                 }
-                st.fallback?.let { fb ->
-                    val names = listOfNotNull(fb.upstream, fb.downstream).joinToString(" ו-") { stop(it.name) }
-                    append('\n').append("הערכה: התחנה לא מדווחת, מחושב לפי $names")
+                st.fallback?.let { plan ->
+                    val names = listOfNotNull(plan.upstream, plan.downstream).joinToString(" ו-") { stop(it.name) }
+                    append('\n').append("הערכה לפי $names")
                 }
-                st.lastSuccessAt?.let { append('\n').append("עודכן ${t(it)} · נראו ${st.busesSeen} · עד ${t(st.endsAt)}") }
+                st.endsAt.let { append('\n').append("עד ${t(it)}") }
+                st.lastSuccessAt?.let { append(" · עודכן ${t(it)}") }
             }
         }
         return NotifText(title, body, big)
     }
 
-    /** One alert (departs origin / arrives at stop / time to leave). [estimated]: derived from neighbouring stops. */
-    fun alert(spec: WatchSpec, e: TriggerEvent, estimated: Boolean = false, walkMinutes: Int? = null): NotifText {
-        val est = if (estimated) " (הערכה)" else ""
-        val (title, body) = when (e.reason) {
-            TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS, TriggerReason.LEFT_ORIGIN_SCHEDULED ->
-                "${line(spec)} יצא מהמוצא" to (
-                    (if (e.reason == TriggerReason.LEFT_ORIGIN_SCHEDULED) "לפי הלו״ז: יציאה ב-" else "יצא ב-") +
-                        t(e.at) + " מ" + stop(spec.origin.name) + est)
-            TriggerReason.AT_STOP_GPS -> "${line(spec)} מגיע ל${stop(spec.stop.name)}" to "האוטובוס ליד התחנה עכשיו$est"
-            TriggerReason.AT_STOP_ETA -> "${line(spec)} מגיע ל${stop(spec.stop.name)}" to "מגיע לתחנה ב-${e.eta?.let(::t) ?: t(e.at)}$est"
-            TriggerReason.DROPPED_AT_STOP -> "${line(spec)} הגיע ל${stop(spec.stop.name)}" to "הגיע לתחנה או עבר אותה עכשיו$est"
-            TriggerReason.LEAVE_NOW -> {
-                val walk = walkMinutes ?: spec.leave?.walkMinutes
-                "צא עכשיו · ${line(spec)}" to (
-                    "מגיע ל${stop(spec.stop.name)} ב-${e.eta?.let(::t) ?: "—"}" + (walk?.let { " · $it דק׳ הליכה" } ?: "") +
-                        (if (!e.live) " (לפי לו״ז)" else "") + est)
+    /** Title = the fact. Body = line or stop, not a repeat of the title. */
+    private fun glance(spec: WatchSpec, st: WatchState, now: Instant, estimated: Boolean): Pair<String, String> {
+        val est = estSuffix(estimated)
+        return when (spec.trigger) {
+            TriggerType.LEAVE_FOR_STOP -> {
+                val b = st.nextLeaveBus
+                val leave = b?.leaveAt
+                when {
+                    b == null || (leave == null && b.leaveStatus != LeaveStatus.LEAVE_NOW) ->
+                        "אין אוטובוס להספיק" to "קו ${line(spec)}"
+                    b.leaveStatus == LeaveStatus.LEAVE_NOW || (leave != null && leave <= now) ->
+                        "צא עכשיו" to "קו ${line(spec)}$est"
+                    else -> "צא ב-${t(leave!!)}" to "קו ${line(spec)} · בעוד ${minsUntil(leave, now)} דק׳$est"
+                }
+            }
+            TriggerType.DEPARTS_ORIGIN -> {
+                val b = st.buses.filter { !it.alerted && it.scheduledDeparture != null }.minByOrNull { it.scheduledDeparture!! }
+                if (b == null) "אין אוטובוס" to "קו ${line(spec)}"
+                else "${line(spec)} יוצא ב-${t(b.scheduledDeparture!!)}" to "מתחנת המוצא"
+            }
+            TriggerType.ARRIVES_AT_STOP -> {
+                val b = st.buses.filter { !it.alerted && it.eta != null && it.eta >= now - il.kavmonitor.shared.trigger.Polling.INTERVAL }
+                    .minByOrNull { it.eta!! }
+                if (b == null) "אין אוטובוס" to "קו ${line(spec)}"
+                else "${line(spec)} ב-${t(b.eta!!)}" to "${stop(spec.stop.name)} · בעוד ${minsUntil(b.eta, now)} דק׳$est"
             }
         }
+    }
+
+    /** One alert. [estimated]: derived from neighbouring stops. Walk minutes stay in the expanded text. */
+    fun alert(spec: WatchSpec, e: TriggerEvent, estimated: Boolean = false, walkMinutes: Int? = null): NotifText {
+        val est = estSuffix(estimated)
+        val (title, body) = when (e.reason) {
+            TriggerReason.LEFT_ORIGIN_DROPPED, TriggerReason.LEFT_ORIGIN_GPS ->
+                "${line(spec)} יצא" to (t(e.at) + " · " + stop(spec.origin.name) + est)
+            TriggerReason.LEFT_ORIGIN_SCHEDULED ->
+                "${line(spec)} יצא" to ("לו״ז " + t(e.at) + " · " + stop(spec.origin.name) + est)
+            TriggerReason.AT_STOP_GPS -> "${line(spec)} בתחנה" to (stop(spec.stop.name) + est)
+            TriggerReason.AT_STOP_ETA -> "${line(spec)} מגיע" to (stop(spec.stop.name) + " · " + (e.eta?.let(::t) ?: t(e.at)) + est)
+            TriggerReason.DROPPED_AT_STOP -> "${line(spec)} הגיע" to (stop(spec.stop.name) + est)
+            TriggerReason.LEAVE_NOW -> "צא עכשיו" to ("${line(spec)} · " + stop(spec.stop.name) + (if (!e.live) " · לו״ז" else "") + est)
+        }
         val big = buildString {
-            append(body)
-            append('\n').append(rows(spec))
+            append(rows(spec))
             e.vehicleRef?.let { append('\n').append("רכב ").append(it) }
-            e.scheduledDeparture?.let { append(" · יציאה מתוכננת מהמוצא ${t(it)}") }
+            e.scheduledDeparture?.let { append(" · יציאה מתוכננת ${t(it)}") }
             if (e.reason == TriggerReason.LEAVE_NOW) {
-                append('\n').append(if (e.live) "זמן הגעה חי (GPS)" else "זמן הגעה לפי הלו״ז")
+                val walk = walkMinutes ?: spec.leave?.walkMinutes
+                append('\n').append(if (e.live) "הגעה חיה" else "הגעה לפי לו״ז")
+                walk?.let { append(" · הליכה $it דק׳") }
                 spec.leave?.bufferMinutes?.let { append(" · מרווח $it דק׳") }
             }
-            if (estimated) append('\n').append("התחנה לא מדווחת ב-curlbus: חושב לפי תחנה סמוכה")
+            if (estimated) append('\n').append("הערכה לפי תחנה סמוכה")
         }
         return NotifText(title, body, big)
     }
 
     fun finished(spec: WatchSpec, minutes: Int): NotifText =
-        NotifText("מעקב ${line(spec)} הסתיים", "עבר זמן המעקב ($minutes דק׳)", null)
+        NotifText("המעקב הסתיים", "קו ${line(spec)} · $minutes דק׳", null)
 
-    /** Line for the in-app status card (same wording as the collapsed ongoing notification, without the end time). */
+    /** One line for an in-app status, without the end time. */
     fun statusLine(spec: WatchSpec, st: WatchState, now: Instant): String? =
-        if (st.lastSuccessAt == null || st.lastError != null) null else nextLine(spec, st, now)
+        if (st.lastSuccessAt == null || st.lastError != null) null else ongoing(spec, st, now).body
 }

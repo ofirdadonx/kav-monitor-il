@@ -71,6 +71,7 @@ object TestHttp {
  * With -Pkav.live=true the real APIs are used (requests still counted).
  */
 class TestApp : KavMonitorApp() {
+    init { il.kavmonitor.shared.map.MapConfig.offline = true }
     override fun createGraph(): AppGraph {
         if (LIVE) {
             val client = createHttpClient()

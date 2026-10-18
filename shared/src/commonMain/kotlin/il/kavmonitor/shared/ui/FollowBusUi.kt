@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -87,7 +88,7 @@ fun FollowCard(ref: BusRef, info: FollowInfo, now: Instant, onUnfollow: () -> Un
             Text(FollowTexts.headline(info, now), style = MaterialTheme.typography.titleLarge)
             FollowTexts.details(info, now).forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = onUnfollow) { Text("הפסק לעקוב") }
+                OutlinedButton(onClick = onUnfollow, shape = CircleShape) { Text("הפסק לעקוב") }
             }
         }
     }

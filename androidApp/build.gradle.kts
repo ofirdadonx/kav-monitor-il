@@ -29,8 +29,8 @@ android {
         applicationId = "il.kavmonitor.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 8
-        versionName = "0.7"
+        versionCode = 9
+        versionName = "0.8"
         buildConfigField("String", "ORS_API_KEY", "\"" + orsApiKey.replace("\"", "") + "\"")
     }
 
@@ -102,7 +102,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
-// APKs named with the version: build/outputs/named/kav-monitor-0.7.apk (debug), …-release.apk when signed.
+// APKs named with the version: build/outputs/named/kav-monitor-0.8.apk (debug), …-release.apk when signed.
 androidComponents {
     onVariants { variant ->
         val cap = variant.name.replaceFirstChar { it.uppercase() }

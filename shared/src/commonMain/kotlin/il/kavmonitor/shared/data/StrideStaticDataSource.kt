@@ -7,8 +7,11 @@ import il.kavmonitor.shared.model.RouteStop
 import il.kavmonitor.shared.model.StopList
 import il.kavmonitor.shared.model.StopListSource
 import il.kavmonitor.shared.route.RouteGeometry
+import il.kavmonitor.shared.util.israelClock
 import il.kavmonitor.shared.util.minusDays
 import il.kavmonitor.shared.util.parseApiInstant
+import il.kavmonitor.shared.util.plusDays
+import kotlin.time.Instant
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -31,30 +34,84 @@ class StrideStaticDataSource(
 ) : StaticDataSource {
 
     override suspend fun directions(lineNumber: String, date: String): List<Direction> {
-        val rows: List<GtfsRouteDto> = client.get("$baseUrl/gtfs_routes/list") {
-            parameter("route_short_name", lineNumber.trim())
-            parameter("date_from", date)
-            parameter("date_to", date)
-            parameter("limit", 100)
+        val line = lineNumber.trim()
+        val todayRows = listRoutes(line, date, date, limit = 100)
+        if (todayRows.isNotEmpty()) return todayRows.toDirections(line, runsToday = true, nextDate = null)
+        val day = LocalDate.parse(date)
+        // Today's GTFS is often unpublished, or the line does not run today. Keep the latest known definition.
+        val pastProbe = runCatchingApi {
+            listRoutes(
+                line, day.minusDays(DEFINITION_LOOKBACK_DAYS).toString(), day.minusDays(1).toString(),
+                limit = 1, orderBy = "date desc",
+            )
+        }.orEmpty()
+        val pastDate = pastProbe.firstOrNull()?.date ?: return emptyList()
+        val defs = listRoutes(line, pastDate, pastDate, limit = 100)
+        val future = runCatchingApi {
+            listRoutes(
+                line, day.plusDays(1).toString(), day.plusDays(FUTURE_DAYS).toString(),
+                limit = 1, orderBy = "date asc",
+            )
+        }.orEmpty()
+        return defs.toDirections(line, runsToday = false, nextDate = future.firstOrNull()?.date)
+    }
+
+    override suspend fun nextDeparture(lineRef: Int, fromDate: String, now: Instant): NextDeparture? {
+        val day = LocalDate.parse(fromDate)
+        val routes = runCatchingApi {
+            client.get("$baseUrl/gtfs_routes/list") {
+                parameter("line_refs", lineRef)
+                parameter("date_from", fromDate)
+                parameter("date_to", day.plusDays(FUTURE_DAYS).toString())
+                parameter("order_by", "date asc")
+                parameter("limit", FUTURE_DAYS + 1)
+            }.body<List<GtfsRouteDto>>()
+        }.orEmpty().filter { it.date != null }.distinctBy { it.date }.sortedBy { it.date }
+        for (route in routes) {
+            val serviceDay = route.date ?: continue
+            val rides = runCatchingApi {
+                client.get("$baseUrl/gtfs_rides/list") {
+                    parameter("gtfs_route_id", route.id)
+                    parameter("limit", 40)
+                    parameter("order_by", "start_time asc")
+                }.body<List<GtfsRideDto>>()
+            }.orEmpty()
+            val times = rides.mapNotNull { parseApiInstant(it.startTime) }.sorted()
+            val upcoming = times.firstOrNull { serviceDay != fromDate || it >= now }
+            if (upcoming != null) return NextDeparture(serviceDay, upcoming.israelClock())
+            if (serviceDay > fromDate) return NextDeparture(serviceDay, null)
+        }
+        return null
+    }
+
+    private suspend fun listRoutes(line: String, from: String, to: String, limit: Int, orderBy: String? = null): List<GtfsRouteDto> =
+        client.get("$baseUrl/gtfs_routes/list") {
+            parameter("route_short_name", line)
+            parameter("date_from", from)
+            parameter("date_to", to)
+            parameter("limit", limit)
+            if (orderBy != null) parameter("order_by", orderBy)
         }.body()
-        return rows
-            .filter { it.lineRef != null }
+
+    private fun List<GtfsRouteDto>.toDirections(line: String, runsToday: Boolean, nextDate: String?): List<Direction> =
+        filter { it.lineRef != null }
             .distinctBy { it.lineRef }
             .map { r ->
                 Direction(
                     lineRef = r.lineRef!!,
-                    routeShortName = r.routeShortName ?: lineNumber,
+                    routeShortName = r.routeShortName ?: line,
                     longName = r.routeLongName.orEmpty(),
                     agencyName = r.agencyName.orEmpty(),
                     operatorRef = r.operatorRef ?: -1,
                     routeDirection = r.routeDirection.orEmpty(),
                     routeAlternative = r.routeAlternative.orEmpty(),
                     gtfsRouteId = r.id,
-                    date = r.date ?: date,
+                    date = r.date ?: "",
+                    runsToday = runsToday,
+                    nextServiceDate = nextDate,
                 )
             }
             .sortedWith(compareBy({ it.agencyName }, { it.routeDirection }, { it.routeAlternative }, { it.lineRef }))
-    }
 
     override suspend fun stops(direction: Direction): StopList {
         stopsForGtfsRoute(direction.gtfsRouteId)?.let {
@@ -137,6 +194,10 @@ class StrideStaticDataSource(
 
     companion object {
         const val LOOKBACK_DAYS = 7
+        /** How far back to look for a line definition when today has no GTFS row. */
+        const val DEFINITION_LOOKBACK_DAYS = 21
+        /** How far ahead to look for the next published service day. */
+        const val FUTURE_DAYS = 45
 
         fun mapRideStops(rows: List<GtfsRideStopDto>): List<RouteStop> {
             val sorted = rows.filter { it.stopCode != null }

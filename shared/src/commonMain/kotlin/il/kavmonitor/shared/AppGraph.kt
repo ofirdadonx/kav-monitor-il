@@ -14,6 +14,7 @@ import il.kavmonitor.shared.location.LocationController
 import il.kavmonitor.shared.location.LocationProvider
 import il.kavmonitor.shared.location.NoLocationProvider
 import il.kavmonitor.shared.platform.WatchLauncher
+import il.kavmonitor.shared.recents.FavoritesStore
 import il.kavmonitor.shared.recents.RecentsStore
 import il.kavmonitor.shared.trigger.TriggerConfig
 import il.kavmonitor.shared.ui.AppController
@@ -35,7 +36,7 @@ class AppGraph(
     val live: LiveDataSource = CurlbusLiveDataSource(httpClient),
     val triggerConfig: TriggerConfig = TriggerConfig.Default,
     val clock: Clock = Clock.System,
-    /** Full version name shown in the UI (e.g. "0.7"). */
+    /** Full version name shown in the UI (e.g. "0.8"). */
     val appVersion: String = "",
     val routeLiveInterval: Duration = RouteLiveController.DEFAULT_INTERVAL,
     /** Live source of the foreground route view (same backend as [live]; separate so tests can tell them apart). */
@@ -60,8 +61,9 @@ class AppGraph(
         routes.stopsForLine(spec.lineRef, spec.lineName).stops
     }
     val recents = RecentsStore(settings)
+    val favorites = FavoritesStore(settings)
     val location = LocationController(locationProvider, settings)
     val controller: AppController by lazy {
-        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops, walkPlanner = walkPlanner, nearbySource = nearbySource)
+        AppController(routes, recents, launcher, trackedRouteLive, clock = clock, routeLiveInterval = routeLiveInterval, appVersion = appVersion, location = location, brokenStops = brokenStops, walkPlanner = walkPlanner, nearbySource = nearbySource, favorites = favorites)
     }
 }
