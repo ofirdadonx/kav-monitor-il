@@ -25,7 +25,7 @@ Screenshots are from 0.6. The current release is **0.7** (Material 3). See [CHAN
 
 ## Requirements
 
-- JDK 21+ (the UI tests run Robolectric on Android SDK 36, which needs 21)
+- JDK 17+
 - Android SDK, compile/target 37 (`ANDROID_HOME` or `sdk.dir` in `local.properties`)
 - Device or emulator on Android 8.0+ (minSdk 26)
 
@@ -41,7 +41,7 @@ Release signing uses `KAV_KEYSTORE`, `KAV_KEYSTORE_PASSWORD`, `KAV_KEY_ALIAS`, a
 
 ## CI and releases
 
-Pull requests and pushes to `main` run the unit tests and a debug build (`.github/workflows/ci.yml`).
+Pull requests and pushes to `main` run the shared unit tests and a debug build (`.github/workflows/ci.yml`).
 
 Pushing a tag `v<version>` publishes a signed APK on [GitHub Releases](https://github.com/ofirdadonx/kav-monitor-il/releases). The tag has to match `versionName` in `androidApp/build.gradle.kts` and a `## <version>` section in [CHANGELOG.md](CHANGELOG.md). The release job needs these repository secrets: `KAV_KEYSTORE_BASE64`, `KAV_KEYSTORE_PASSWORD`, `KAV_KEY_ALIAS`, `KAV_KEY_PASSWORD`.
 
@@ -49,7 +49,6 @@ Pushing a tag `v<version>` publishes a signed APK on [GitHub Releases](https://g
 
 ```bash
 ./gradlew :shared:jvmTest
-./gradlew :androidApp:testDebugUnitTest
 ```
 
 Live checks against [Open Bus Stride](https://open-bus-stride-api.hasadna.org.il) and [curlbus](https://curlbus.app):

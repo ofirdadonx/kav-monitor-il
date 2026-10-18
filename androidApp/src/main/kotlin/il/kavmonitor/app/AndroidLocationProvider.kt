@@ -7,7 +7,6 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
@@ -59,10 +58,6 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
         }
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) = offer(location)
-            @Deprecated("Deprecated in Java")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
         }
         try {
             // A recent cached fix shows something immediately; fresh fixes follow.

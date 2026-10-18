@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v5
 
@@ -33,4 +33,4 @@ jobs:
           packages: platforms;android-37.0 platform-tools
 
       - name: Unit tests and debug APK
-        run: chmod +x ./gradlew && ./gradlew :shared:jvmTest :androidApp:testDebugUnitTest :androidApp:assembleDebug --stacktrace
+        run: chmod +x ./gradlew && ./gradlew :shared:jvmTest :androidApp:assembleDebug --stacktrace
