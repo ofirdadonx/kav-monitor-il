@@ -25,7 +25,7 @@ Screenshots are from 0.6. The current release is **0.7** (Material 3). See [CHAN
 
 ## Requirements
 
-- JDK 17+
+- JDK 21+ (the UI tests run Robolectric on Android SDK 36, which needs 21)
 - Android SDK, compile/target 37 (`ANDROID_HOME` or `sdk.dir` in `local.properties`)
 - Device or emulator on Android 8.0+ (minSdk 26)
 
