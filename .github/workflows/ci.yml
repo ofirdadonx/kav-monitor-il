@@ -22,14 +22,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Use the runner Android SDK
-        run: |
-          SDK=/usr/local/lib/android/sdk
-          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-          SM=$(find "$SDK/cmdline-tools" -name sdkmanager -type f | sort | tail -1)
-          yes | "$SM" --licenses >/dev/null || true
-          "$SM" "platforms;android-37"
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platforms;android-37 platform-tools
 
       - name: Build prod debug APK
         run: chmod +x ./gradlew && ./gradlew :androidApp:assembleProdDebug --stacktrace
